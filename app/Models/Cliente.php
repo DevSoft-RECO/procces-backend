@@ -42,7 +42,21 @@ class Cliente extends Model
      *
      * @var array
      */
-    protected $guarded = [];
+    protected $fillable = [
+        'codigo_cliente',
+        'dpi',
+        'numero_documento',
+        'nombre1',
+        'apellido1',
+        'nombre_corto',
+        'empresa',
+        'tipo_documento',
+        'usuario_asesor',
+        'tipo_garantia',
+        'tasa_interes',
+        'monto_documento',
+        'fecha_inicio',
+    ];
 
     /**
      * The attributes that should be cast.
@@ -50,19 +64,8 @@ class Cliente extends Model
      * @var array
      */
     protected $casts = [
-        'actualizacion' => 'date',
-        'fecha_apertura' => 'date',
-        'fecha_nacimiento' => 'date',
-        'fecha_ingreso_laboral' => 'date',
-        'fecha_inicio_negocio' => 'date',
-        'fecha_expdpi' => 'date',
-        'fecha_emidpi' => 'date',
-        'ingresos_laborales' => 'decimal:5',
-        'ingresos_negocio_propio' => 'decimal:5',
-        'ingresos_remesas' => 'decimal:5',
-        'monto_otros_ingresos' => 'decimal:5',
-        'otros_ingresos' => 'decimal:5',
-        'monto_ingresos' => 'decimal:5',
-        'monto_egresos' => 'decimal:5',
+        'fecha_inicio' => 'date',
+        'tasa_interes' => 'decimal:2',
+        'monto_documento' => 'decimal:2',
     ];
 }
