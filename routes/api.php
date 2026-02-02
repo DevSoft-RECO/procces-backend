@@ -28,6 +28,7 @@ Route::middleware('sso')->group(function () {
     });
 
     Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
+    Route::apiResource('tipo-documentos', App\Http\Controllers\TipoDocumentoController::class);
     // Import Routes
 Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'upload']);
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
