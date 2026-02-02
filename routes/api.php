@@ -26,9 +26,11 @@ Route::middleware('sso')->group(function () {
              return response()->json(['message' => 'Error de conexión con App Madre: ' . $e->getMessage()], 500);
         }
     });
-});
-
-// Import Routes
+    // Import Routes
 Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'upload']);
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
-Route::post('/clientes/search', [App\Http\Controllers\ClienteController::class, 'search']);
+Route::get('/expedientes', [App\Http\Controllers\ExpedienteController::class, 'index']);
+Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteController::class, 'search']);
+
+});
+

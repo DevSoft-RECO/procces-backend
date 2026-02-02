@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\ImportClientsJob;
+use App\Jobs\ImportExpedientesJob;
 use Illuminate\Support\Str;
 
 class ImportController extends Controller
@@ -37,7 +37,7 @@ class ImportController extends Controller
             ];
 
             // Dispatch Job
-            ImportClientsJob::dispatch($absolutePath, $dates, $jobId);
+            ImportExpedientesJob::dispatch($absolutePath, $dates, $jobId);
 
             // Initialize cache
             Cache::put("import_job_{$jobId}", [
