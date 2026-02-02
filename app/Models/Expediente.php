@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Cliente extends Model
+class Expediente extends Model
 {
     use HasFactory;
 
-    protected $table = 'clientes';
+    protected $table = 'expedientes';
 
     /**
      * The primary key associated with the table.
@@ -44,18 +44,26 @@ class Cliente extends Model
      */
     protected $fillable = [
         'codigo_cliente',
-        'dpi',
+        'cui',
         'numero_documento',
-        'nombre1',
-        'apellido1',
-        'nombre_corto',
-        'empresa',
+        'agencia',
         'tipo_documento',
         'usuario_asesor',
         'tipo_garantia',
         'tasa_interes',
-        'monto_documento',
+        'monto',
         'fecha_inicio',
+        'asociado',
+        'contrato',
+        'cta_bw',
+        'cif',
+        'datos_garantia',
+        'inscripcion_otros_contratos',
+        'ingreso',
+        'inventario',
+        'salida',
+        'observacion',
+        'estado'
     ];
 
     /**
@@ -66,6 +74,6 @@ class Cliente extends Model
     protected $casts = [
         'fecha_inicio' => 'date',
         'tasa_interes' => 'decimal:2',
-        'monto_documento' => 'decimal:2',
+        'monto' => 'decimal:2',
     ];
 }

@@ -49,7 +49,7 @@ class ImportClientsJob implements ShouldQueue
             }
 
             // TRUNCATE TABLE AS REQUESTED
-            DB::table('clientes')->truncate();
+            DB::table('expedientes')->truncate();
 
             Cache::put($cacheKey, [
                 'status' => 'processing',
@@ -81,8 +81,12 @@ class ImportClientsJob implements ShouldQueue
             while (($row = fgetcsv($file, 0, ";")) !== FALSE) { // Changed delimiter to ';'
                 $currentRow++;
 
-                // Skip Header (Check if first column is 'EMPRESA')
-                if (str_contains(strtoupper($row[0] ?? ''), 'EMPRESA')) {
+                // Remove BOM from first column key if present
+                $firstCol = strtoupper($row[0] ?? '');
+                $firstCol = preg_replace('/^\xEF\xBB\xBF/', '', $firstCol);
+
+                // Skip Header (Check if first column is 'AGENCIA')
+                if (str_contains($firstCol, 'AGENCIA')) {
                     continue;
                 }
 
@@ -112,8 +116,19 @@ class ImportClientsJob implements ShouldQueue
                      }
                 }
 
-                $data = $this->mapRow($row);
-                $batchData[] = $data;
+                try {
+                    $data = $this->mapRow($row);
+                    if (!$data['codigo_cliente']) {
+                         $totalSkipped++;
+                         Log::warning("Skipped row $currentRow: Missing codigo_cliente", $row);
+                         continue;
+                    }
+                    $batchData[] = $data;
+                } catch (\Exception $e) {
+                    $totalSkipped++;
+                    Log::error("Error mapping row $currentRow: " . $e->getMessage(), $row);
+                    continue;
+                }
 
                 if (count($batchData) >= $batchSize) {
                     $this->processBatch($batchData);
@@ -178,50 +193,68 @@ class ImportClientsJob implements ShouldQueue
 
         // Using insert because we truncated, so no need for upsert overhead
         // But upsert is safer if duplicates exist in CSV
-        DB::table('clientes')->upsert(
+        DB::table('expedientes')->upsert(
             $batchData,
             ['codigo_cliente'],
             [
-               'empresa', 'numero_documento', 'tipo_documento', 'usuario_asesor',
-               'tasa_interes', 'monto_documento', 'tipo_garantia', 'fecha_inicio',
-               'dpi', 'nombre1', 'apellido1', 'nombre_corto', 'updated_at'
+               'agencia', 'numero_documento', 'tipo_documento', 'usuario_asesor',
+               'tasa_interes', 'monto', 'tipo_garantia', 'fecha_inicio',
+               'cui', 'asociado', 'contrato', 'cta_bw', 'cif',
+               'datos_garantia', 'inscripcion_otros_contratos', 'ingreso', 'inventario',
+               'salida', 'observacion', 'estado', 'updated_at'
             ]
         );
     }
 
     private function mapRow($row)
     {
-        // CSV Structure:
-        // 0: EMPRESA
-        // 1: CODIGOCLIENTE
-        // 2: NUMERODOCUMENTO
-        // 3: TIPO DOCUENTO
-        // 4: USUARIOASESOR
-        // 5: TASAINTERES
-        // 6: MONTODOCUMENTO
-        // 7: TIPOGARANTIA
-        // 8: fechainicio (dd/mm/yyyy)
-        // 9: CUI (dpi)
-        // 10: NOMBRE 1
-        // 11: APELLIDO 1
-        // 12: NOMBRE CORTO
+        // CSV Structure (v2):
+        // 0: AGENCIA
+        // 1: CodigoCliente
+        // 2: Numero Docuemnto
+        // 3: Tipo Documento
+        // 4: UsusuarioAsesor
+        // 5: Tasa Interes
+        // 6: MONTO (Q and ,)
+        // 7: TIPO DE GARANTIA
+        // 8: FECHA INICIO (d/m/Y)
+        // 9: CUI
+        // 10: ASOCIADO
+        // 11: CONTRATO
+        // 12: CTA.BW
+        // 13: CIF
+        // 14: DATOS DE GARANTIA
+        // 15: INSCRIPCION/OTROS CONTRATOS
+        // 16: INGRESO
+        // 17: INVENTARIO
+        // 18: SALIDA
+        // 19: OBSERVACIÓN
+        // 20: ESTADO
 
         return [
-            'empresa'           => $this->val($row, 0),
-            'codigo_cliente'    => $this->intVal($row, 1),
-            'numero_documento'  => $this->val($row, 2),
-            'tipo_documento'    => $this->val($row, 3),
-            'usuario_asesor'    => $this->val($row, 4),
-            'tasa_interes'      => $this->decVal($row, 5),
-            'monto_documento'   => $this->decVal($row, 6),
-            'tipo_garantia'     => $this->val($row, 7),
-            'fecha_inicio'      => $this->dateVal($row, 8),
-            'dpi'               => $this->val($row, 9),
-            'nombre1'           => $this->val($row, 10),
-            'apellido1'         => $this->val($row, 11),
-            'nombre_corto'      => $this->val($row, 12),
-            'created_at'        => now(),
-            'updated_at'        => now(),
+            'agencia'              => $this->val($row, 0),
+            'codigo_cliente'       => $this->intVal($row, 1),
+            'numero_documento'     => $this->val($row, 2),
+            'tipo_documento'       => $this->val($row, 3),
+            'usuario_asesor'       => $this->val($row, 4),
+            'tasa_interes'         => $this->decVal($row, 5),
+            'monto'                => $this->currencyVal($row, 6),
+            'tipo_garantia'        => $this->val($row, 7),
+            'fecha_inicio'         => $this->dateVal($row, 8),
+            'cui'                  => $this->val($row, 9),
+            'asociado'             => $this->val($row, 10),
+            'contrato'             => $this->val($row, 11),
+            'cta_bw'               => $this->val($row, 12),
+            'cif'                  => $this->val($row, 13),
+            'datos_garantia'       => $this->val($row, 14),
+            'inscripcion_otros_contratos' => $this->val($row, 15),
+            'ingreso'              => $this->val($row, 16),
+            'inventario'           => $this->val($row, 17),
+            'salida'               => $this->val($row, 18),
+            'observacion'          => $this->val($row, 19),
+            'estado'               => $this->val($row, 20),
+            'created_at'           => now(),
+            'updated_at'           => now(),
         ];
     }
 
@@ -264,5 +297,13 @@ class ImportClientsJob implements ShouldQueue
         } catch (\Exception $e) {
             return null;
         }
+    }
+    private function currencyVal($row, $index)
+    {
+        $val = $this->val($row, $index);
+        if ($val === null) return null;
+        // Remove 'Q', commas, and spaces
+        $clean = preg_replace('/[Q,\s]/', '', $val);
+        return is_numeric($clean) ? (float)$clean : null;
     }
 }

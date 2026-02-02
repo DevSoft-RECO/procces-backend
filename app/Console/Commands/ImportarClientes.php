@@ -18,7 +18,7 @@ class ImportarClientes extends Command
      *
      * @var string
      */
-    protected $signature = 'import:clientes
+    protected $signature = 'import:expedientes
                             {archivo : La ruta del archivo a importar}
                             {--desde= : Fecha inicial YYYYMMDD (Requerido para actualización)}
                             {--hasta= : Fecha final YYYYMMDD (Opcional, defecto igual a desde)}
@@ -256,7 +256,7 @@ class ImportarClientes extends Command
         $columnsToUpdate = array_diff($columnsToUpdate, ['codigo_cliente', 'created_at']);
 
         try {
-            DB::table('clientes')->upsert(
+            DB::table('expedientes')->upsert(
                 $batchData,
                 ['codigo_cliente'],
                 $columnsToUpdate
