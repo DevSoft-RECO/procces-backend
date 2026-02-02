@@ -5,70 +5,64 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Auth\GenericUser;
-use Exception;
+use App\Services\MotherAppService;
+use App\Models\User;
 
 class ValidateSSO
 {
+    protected $motherService;
+
+    public function __construct(MotherAppService $service) {
+        $this->motherService = $service;
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
-        // Obtener el token del encabezado Authorization: Bearer ...
         $token = $request->bearerToken();
 
         if (!$token) {
-            return response()->json(['message' => 'Token requerido'], 401);
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
         try {
-            // 1. Validar existencia de la Llave Pública
-            $publicKeyPath = storage_path('oauth-public.key');
+            // 1. Obtener datos validados y cacheados de la App Madre
+            $userData = $this->motherService->getUserFromToken($token);
 
-            if (!file_exists($publicKeyPath)) {
-                throw new Exception("Error de servidor: Falta llave pública de validación.");
+            if (!$userData) {
+                 return response()->json(['message' => 'Token Inválido o Expirado'], 401);
             }
 
-            $publicKey = file_get_contents($publicKeyPath);
-            JWT::$leeway = 60; // Margen de 60s por si los relojes de los servidores no están sincronizados
+            // 2. Aprovisionamiento Just-In-Time (Sync local)
+            // Sincronizamos los datos básicos en la tabla users local.
+            // Usamos updateOrCreate para crear o actualizar (si cambió el nombre en la madre)
+            $user = User::updateOrCreate(
+                ['id' => $userData['id']], // Buscamos por ID (mismo que madre)
+                [
+                    'name' => $userData['name'],
+                    'email' => $userData['email'],
+                    'username' => $userData['username'] ?? null,
+                    'telefono' => $userData['telefono'] ?? null,
+                    // timestamps se manejan solos
+                ]
+            );
 
-            // 2. Decodificar y Validar firma del Token (RS256)
-            $decoded = JWT::decode($token, new Key($publicKey, 'RS256'));
+            // 3. Inyectar Roles y Permisos (Transitorio, no BD)
+            // Estos vienen frescos del token/servicio y se usan para gates/policies en este request
+            $user->roles_list = $userData['roles'] ?? [];
+            $user->permissions_list = $userData['permissions'] ?? [];
+            $user->agencia_data = $userData['agencia'] ?? null;
 
-            // 3. Obtener URL de la App Madre
-            // NOTA: Usamos config() porque en producción env() devuelve null si la caché está activa.
-            $motherUrl = config('services.app_madre.url');
+            // 4. Loguear al usuario en Laravel (Auth Facade)
+            // Esto permite usar auth()->user() o $request->user() en controladores
+            Auth::login($user);
 
-            if (empty($motherUrl)) {
-                throw new Exception("Configuración incompleta: URL Madre no definida.");
-            }
+            return $next($request);
 
-            // 4. Intentar obtener datos frescos (Roles/Permisos) desde la Madre
-            $response = Http::withToken($token)->get("{$motherUrl}/api/me");
-
-            if ($response->successful()) {
-                // ÉXITO: Tenemos conexión. Usamos los datos completos del usuario (Roles actualizados).
-                $userData = $response->json();
-                $userData['id'] = $decoded->sub; // Aseguramos que el ID venga del token
-                $user = new GenericUser($userData);
-            } else {
-                // FALLBACK: Si la Madre está caída o lenta, no bloqueamos al usuario.
-                // Usamos los datos básicos que vienen incrustados en el token JWT.
-                $userData = (array) $decoded;
-                $userData['id'] = $decoded->sub;
-                $user = new GenericUser($userData);
-            }
-
-            // Establecer el usuario en la sesión actual de la solicitud
-            Auth::setUser($user);
-
-        } catch (Exception $e) {
-            // Si el token es inválido, expirado o manipulado, devolvemos 401
-            return response()->json(['message' => 'Acceso Denegado: ' . $e->getMessage()], 401);
+        } catch (\Throwable $e) {
+            // Capturamos cualquier error (incluyendo clases no encontradas o DB errors)
+            // Retornamos 401 o 500 según corresponda, pero JSON limpio.
+            return response()->json(['message' => 'SSO Error: ' . $e->getMessage()], 401);
         }
-
-        return $next($request);
     }
 }

@@ -28,7 +28,13 @@ Route::middleware('sso')->group(function () {
     });
 
     Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
+    Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
     Route::apiResource('tipo-documentos', App\Http\Controllers\TipoDocumentoController::class);
+
+    // Agencias y Sincronización
+    Route::get('/agencias/sync-preview', [App\Http\Controllers\AgenciaController::class, 'previewSync']);
+    Route::post('/agencias/sync', [App\Http\Controllers\AgenciaController::class, 'sync']);
+    Route::apiResource('agencias', App\Http\Controllers\AgenciaController::class);
     // Import Routes
 Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'upload']);
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
