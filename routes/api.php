@@ -27,6 +27,25 @@ Route::middleware('sso')->group(function () {
         }
     });
 
+    Route::get('/users/search', function (Request $request) {
+        $token = $request->bearerToken();
+        $madreUrl = config('services.app_madre.url') ?? env('APP_MADRE_URL');
+        $query = $request->input('q');
+
+        try {
+            $response = Http::withToken($token)
+                ->get($madreUrl . '/api/users/search', ['q' => $query]);
+
+            if ($response->successful()) {
+                return $response->json();
+            } else {
+                return response()->json(['message' => 'Error buscando en App Madre'], $response->status());
+            }
+        } catch (\Exception $e) {
+             return response()->json(['message' => 'Error de conexión: ' . $e->getMessage()], 500);
+        }
+    });
+
     Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
     Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
     Route::apiResource('tipo-documentos', App\Http\Controllers\TipoDocumentoController::class);
@@ -34,7 +53,10 @@ Route::middleware('sso')->group(function () {
     // Agencias y Sincronización
     Route::get('/agencias/sync-preview', [App\Http\Controllers\AgenciaController::class, 'previewSync']);
     Route::post('/agencias/sync', [App\Http\Controllers\AgenciaController::class, 'sync']);
+    Route::post('/agencias/sync', [App\Http\Controllers\AgenciaController::class, 'sync']);
     Route::apiResource('agencias', App\Http\Controllers\AgenciaController::class);
+
+    Route::apiResource('bufetes', App\Http\Controllers\BufeteController::class);
     // Import Routes
 Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'upload']);
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
