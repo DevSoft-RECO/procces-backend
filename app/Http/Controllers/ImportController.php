@@ -62,6 +62,64 @@ class ImportController extends Controller
     }
 
     /**
+     * Handle the file upload for Nuevos Expedientes.
+     */
+    public function uploadNuevos(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $fileName = 'import_nuevos_' . time() . '.csv';
+            $path = $file->storeAs('import', $fileName, 'local');
+            $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
+
+            $jobId = (string) Str::uuid();
+
+            // Dispatch Job
+            \App\Jobs\ImportNuevosExpedientesJob::dispatch($absolutePath, $jobId);
+
+            // Initialize cache
+            $cacheKey = "import_nuevos_job_{$jobId}";
+            Cache::put($cacheKey, [
+                'status' => 'uploading',
+                'progress' => 0,
+                'message' => 'Archivo subido. Encolando proceso nuevos...'
+            ], 3600);
+
+            return response()->json([
+                'success' => true,
+                'jobId' => $jobId,
+                'message' => 'Proceso de nuevos expedientes iniciado.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Upload Nuevos Error: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al subir el archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function statusNuevos($id)
+    {
+        $status = Cache::get("import_nuevos_job_{$id}");
+
+        if (!$status) {
+            return response()->json([
+                'status' => 'not_found',
+                'progress' => 0,
+                'message' => 'No se encontró el proceso o ha expirado.'
+            ]);
+        }
+
+        return response()->json($status);
+    }
+
+    /**
      * Get the status of an active job.
      */
     public function status($id)
