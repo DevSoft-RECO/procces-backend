@@ -95,7 +95,7 @@ class NuevoExpedienteController extends Controller
      }
 
     /**
-     * Verificar si existe un documento con número y fecha.
+     * Verificar si existen documentos con número y fecha.
      */
     public function checkDocumento(Request $request)
     {
@@ -104,32 +104,35 @@ class NuevoExpedienteController extends Controller
             'fecha' => 'required|date'
         ]);
 
-        $documento = \App\Models\Documento::where('numero', $request->numero)
+        $documentos = \App\Models\Documento::where('numero', $request->numero)
                         ->where('fecha', $request->fecha)
                         ->with('tipoDocumento', 'registroPropiedad')
-                        ->first();
+                        ->get(); // Get ALL matches
 
-        if ($documento) {
-            $alreadyLinked = false;
-
-            // Check association if expediente context provided
-            if ($request->has('nuevo_expediente_id')) {
-                $alreadyLinked = $documento->nuevosExpedientes()
-                                   ->where('nuevos_expedientes.codigo_cliente', $request->nuevo_expediente_id)
-                                   ->exists();
-            }
+        if ($documentos->isNotEmpty()) {
+            // Check association for each document
+            $mappedDocs = $documentos->map(function ($doc) use ($request) {
+                $alreadyLinked = false;
+                if ($request->has('nuevo_expediente_id')) {
+                    $alreadyLinked = $doc->nuevosExpedientes()
+                                       ->where('nuevos_expedientes.codigo_cliente', $request->nuevo_expediente_id)
+                                       ->exists();
+                }
+                $doc->already_linked = $alreadyLinked;
+                return $doc;
+            });
 
             return response()->json([
                 'success' => true,
                 'found' => true,
-                'data' => $documento,
-                'already_linked' => $alreadyLinked
+                'data' => $mappedDocs
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'found' => false
+            'found' => false,
+            'data' => []
         ]);
     }
 
