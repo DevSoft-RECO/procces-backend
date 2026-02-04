@@ -32,4 +32,42 @@ class NuevoExpediente extends Model
         'tasa_interes' => 'decimal:2',
         'monto_documento' => 'decimal:2',
     ];
+
+    /**
+     * Get the details (pivot entries) for the guarantees.
+     */
+    public function detalleGarantias()
+    {
+        return $this->hasMany(DetalleGarantia::class, 'nuevo_expediente_id', 'codigo_cliente');
+    }
+
+    /**
+     * Get the warranties associated with the expediente.
+     */
+    public function garantias()
+    {
+        return $this->belongsToMany(Garantia::class, 'detalle_garantia', 'nuevo_expediente_id', 'garantia_id')
+                    ->withPivot([
+                        'codeudor1', 'codeudor2', 'codeudor3', 'codeudor4',
+                        'observacion1', 'observacion2', 'observacion3', 'observacion4'
+                    ])
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the documents associated with the expediente.
+     */
+    public function documentos()
+    {
+        return $this->belongsToMany(Documento::class, 'documento_nuevo_expediente', 'nuevo_expediente_id', 'documento_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the tracking history for the expediente.
+     */
+    public function seguimientos()
+    {
+        return $this->hasMany(SeguimientoExpediente::class, 'nuevo_expediente_id', 'codigo_cliente');
+    }
 }

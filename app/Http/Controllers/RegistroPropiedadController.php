@@ -9,7 +9,10 @@ class RegistroPropiedadController extends Controller
 {
     public function index()
     {
-        return RegistroPropiedad::all();
+        return response()->json([
+            'success' => true,
+            'data' => RegistroPropiedad::all()
+        ]);
     }
 
     public function store(Request $request)

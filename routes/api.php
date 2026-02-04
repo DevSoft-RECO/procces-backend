@@ -68,6 +68,12 @@ Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
 Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);
 
+// Nuevos Expedientes (Mis Expedientes)
+Route::get('/nuevos-expedientes', [App\Http\Controllers\NuevoExpedienteController::class, 'index']);
+Route::post('/nuevos-expedientes/{id}/garantias', [App\Http\Controllers\NuevoExpedienteController::class, 'addGarantia']);
+Route::get('/nuevos-expedientes/{id}/garantias', [App\Http\Controllers\NuevoExpedienteController::class, 'getGarantias']);
+Route::post('/nuevos-expedientes/{id}/documentos', [App\Http\Controllers\NuevoExpedienteController::class, 'addDocumento']);
+
 
 
 });
