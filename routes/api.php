@@ -64,8 +64,9 @@ Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'up
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
 Route::post('/import-nuevos/upload', [App\Http\Controllers\ImportController::class, 'uploadNuevos']);
 Route::get('/import-nuevos/status/{id}', [App\Http\Controllers\ImportController::class, 'statusNuevos']);
-Route::get('/expedientes', [App\Http\Controllers\ExpedienteController::class, 'index']);
-Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteController::class, 'search']);
+Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'index']);
+Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
+Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);
 
 
 
