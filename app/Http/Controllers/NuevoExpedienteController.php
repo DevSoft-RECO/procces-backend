@@ -95,6 +95,24 @@ class NuevoExpedienteController extends Controller
      }
 
     /**
+     * Obtener detalles completos (Garantías y Documentos).
+     */
+    public function getDetalles($codigoCliente)
+    {
+        $expediente = NuevoExpediente::with(['garantias', 'documentos.tipoDocumento', 'documentos.registroPropiedad'])
+                        ->findOrFail($codigoCliente);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'expediente' => $expediente,
+                'garantias' => $expediente->garantias,
+                'documentos' => $expediente->documentos
+            ]
+        ]);
+    }
+
+    /**
      * Verificar si existen documentos con número y fecha.
      */
     public function checkDocumento(Request $request)
