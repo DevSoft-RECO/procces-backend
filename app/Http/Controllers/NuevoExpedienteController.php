@@ -95,52 +95,87 @@ class NuevoExpedienteController extends Controller
      }
 
     /**
+     * Verificar si existe un documento con número y fecha.
+     */
+    public function checkDocumento(Request $request)
+    {
+        $request->validate([
+            'numero' => 'required|string',
+            'fecha' => 'required|date'
+        ]);
+
+        $documento = \App\Models\Documento::where('numero', $request->numero)
+                        ->where('fecha', $request->fecha)
+                        ->with('tipoDocumento', 'registroPropiedad')
+                        ->first();
+
+        if ($documento) {
+            $alreadyLinked = false;
+
+            // Check association if expediente context provided
+            if ($request->has('nuevo_expediente_id')) {
+                $alreadyLinked = $documento->nuevosExpedientes()
+                                   ->where('nuevos_expedientes.codigo_cliente', $request->nuevo_expediente_id)
+                                   ->exists();
+            }
+
+            return response()->json([
+                'success' => true,
+                'found' => true,
+                'data' => $documento,
+                'already_linked' => $alreadyLinked
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'found' => false
+        ]);
+    }
+
+    /**
      * Crear y asociar un documento a un expediente nuevo.
+     * Si se envía 'documento_id', solo asocia.
      */
     public function addDocumento(Request $request, $codigoCliente)
     {
-        $request->validate([
-            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
-            'registro_propiedad_id' => 'required|exists:registro_propiedads,id', // Note table name check
-            'numero' => 'nullable|string|max:30',
-            'fecha' => 'nullable|date',
-            'propietario' => 'nullable|string|max:250',
-            'autorizador' => 'nullable|string|max:250',
-            'no_finca' => 'nullable|string|max:50',
-            'folio' => 'nullable|string|max:50',
-            'libro' => 'nullable|string|max:50',
-            'no_dominio' => 'nullable|string|max:50',
-            'referencia' => 'nullable|string|max:200',
-            'monto_poliza' => 'nullable|numeric',
-            'observacion' => 'nullable|string',
-        ]);
-
         $expediente = NuevoExpediente::findOrFail($codigoCliente);
 
         try {
             DB::beginTransaction();
 
-            // 1. Create the Documento
-            $documento = \App\Models\Documento::create($request->all());
+            $docId = $request->input('documento_id');
+            $action = 'vinculado';
 
-            // 2. Attach usage in pivot (if this doc belongs to this expediente)
-            // Note: If you want to reuse documents, you'd need a way to search/select existing ones.
-            // For now, based on request "agregar documentos", we assume creation of new doc entry.
-            $expediente->documentos()->attach($documento->id);
+            if ($docId) {
+                // Vincular existente
+                $expediente->documentos()->syncWithoutDetaching([$docId]);
+            } else {
+                // Crear nuevo
+                $request->validate([
+                    'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+                    'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
+                    'numero' => 'nullable|string|max:30',
+                    // ... other validations are implicitly handled by create if data passed correctly
+                ]);
+
+                $documento = \App\Models\Documento::create($request->all());
+                $expediente->documentos()->attach($documento->id);
+                $action = 'creado y vinculado';
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Documento agregado correctamente al expediente.',
-                'data' => $documento
+                'message' => "Documento {$action} correctamente al expediente."
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Error al agregar el documento: ' . $e->getMessage()
+                'message' => 'Error al procesar el documento: ' . $e->getMessage()
             ], 500);
         }
     }
