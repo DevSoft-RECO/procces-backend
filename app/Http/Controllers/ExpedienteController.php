@@ -14,7 +14,15 @@ class ExpedienteController extends Controller
      */
     public function index(Request $request)
     {
-        $expedientes = Expediente::paginate(10);
+        $user = auth()->user();
+        $query = Expediente::query();
+
+        // If NOT Super Admin, filter by username
+        if (!$user->hasRole('Super Admin')) {
+            $query->where('usuario_asesor', $user->username);
+        }
+
+        $expedientes = $query->orderBy('created_at', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,

@@ -58,6 +58,7 @@ Route::middleware('sso')->group(function () {
 
     Route::apiResource('bufetes', App\Http\Controllers\BufeteController::class);
     Route::apiResource('registros-propiedad', App\Http\Controllers\RegistroPropiedadController::class);
+    Route::apiResource('tipo-estados', App\Http\Controllers\TipoEstadoController::class);
     // Import Routes
 Route::post('/import/upload', [App\Http\Controllers\ImportController::class, 'upload']);
 Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class, 'status']);
