@@ -26,15 +26,18 @@ class SeguimientoController extends Controller
             DB::beginTransaction();
 
             // 1. Actualizar o Crear registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::updateOrCreate(
-                ['id_expediente' => $codigo],
-                [
-                    'id_estado' => 1, // 1: Enviado a Secretaria
-                    'enviado_a_archivos' => false,
-                    'observacion_envio' => null,
-                    'observacion_rechazo' => null // Limpiar rechazo anterior si hubo
-                ]
-            );
+            // 1. Actualizar o Crear registro en seguimiento_expedientes
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+
+            // Update only state-related fields without wiping others
+            $seguimiento->id_estado = 1; // 1: Enviado a Secretaria
+            $seguimiento->enviado_a_archivos = false;
+
+            // Preserve existing observations unless explicitly changing
+            // We do NOT clear observacion_envio or observacion_rechazo here to keep history as requested.
+            // Only if we wanted to enforce a "clean slate" would we null them, but user requested otherwise.
+
+            $seguimiento->save();
 
             // 2. Actualizar o Crear cronología en seguimiento_fechas
             // Use updateOrCreate since it's 1:1
@@ -101,15 +104,16 @@ class SeguimientoController extends Controller
             DB::beginTransaction();
 
             // 1. Actualizar registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::updateOrCreate(
-                ['id_expediente' => $codigo],
-                [
-                    'id_estado' => 2, // 2: Rechazado / Regresado a Asesores
-                    'enviado_a_archivos' => false,
-                    'observacion_envio' => null,
-                    'observacion_rechazo' => $observacion
-                ]
-            );
+            // 1. Actualizar registro en seguimiento_expedientes
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+
+            $seguimiento->id_estado = 2; // 2: Rechazado / Regresado a Asesores
+            $seguimiento->enviado_a_archivos = false;
+            $seguimiento->observacion_rechazo = $observacion; // Update rejection reason
+
+            // Do NOT wipe observacion_envio
+
+            $seguimiento->save();
 
             // 2. Actualizar fecha de retorno en seguimiento_fechas
             SeguimientoFecha::updateOrCreate(
