@@ -102,8 +102,15 @@ class NuevoExpedienteController extends Controller
      */
     public function getDetalles($codigoCliente)
     {
-        $expediente = NuevoExpediente::with(['garantias', 'documentos.tipoDocumento', 'documentos.registroPropiedad'])
-                        ->findOrFail($codigoCliente);
+        $expediente = NuevoExpediente::with([
+            'garantias',
+            'documentos.tipoDocumento',
+            'documentos.registroPropiedad',
+            'seguimientos' => function($query) {
+                $query->orderBy('id_seguimiento', 'desc');
+            }
+        ])
+        ->findOrFail($codigoCliente);
 
         return response()->json([
             'success' => true,
