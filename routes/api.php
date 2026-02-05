@@ -77,6 +77,9 @@ Route::delete('/nuevos-expedientes/{id}/documentos/{documentoId}', [App\Http\Con
 Route::get('/nuevos-expedientes/{id}/detalles', [App\Http\Controllers\NuevoExpedienteController::class, 'getDetalles']);
 Route::post('/documentos/check', [App\Http\Controllers\NuevoExpedienteController::class, 'checkDocumento']);
 
+    // Seguimiento
+    Route::post('/seguimiento/enviar-secretaria', [App\Http\Controllers\SeguimientoController::class, 'enviarASecretaria']);
+
 
 
 });
