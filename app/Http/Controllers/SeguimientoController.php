@@ -139,4 +139,47 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+    /**
+     * Aceptar expediente (Estado 3).
+     * Esto habilita la opción de enviar a archivo.
+     */
+    public function aceptarExpediente(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+        ]);
+
+        $codigo = $request->codigo_cliente;
+
+        try {
+            DB::beginTransaction();
+
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+
+            $seguimiento->id_estado = 3; // 3: Aceptado / En Revisión Final (Previo a Archivo)
+            // No tocamos enviado_a_archivos aquí, eso es en el siguiente paso.
+            $seguimiento->save();
+
+            // Actualizar fecha de aceptación
+            SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $codigo],
+                ['f_aceptado_secretaria' => Carbon::now()]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente aceptado correctamente.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al aceptar expediente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

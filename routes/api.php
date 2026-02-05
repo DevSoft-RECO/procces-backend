@@ -81,6 +81,7 @@ Route::post('/documentos/check', [App\Http\Controllers\NuevoExpedienteController
     Route::post('/seguimiento/enviar-secretaria', [App\Http\Controllers\SeguimientoController::class, 'enviarASecretaria']);
     Route::get('/seguimiento/buzon-secretaria', [App\Http\Controllers\SeguimientoController::class, 'buzonSecretaria']);
     Route::post('/seguimiento/rechazar', [App\Http\Controllers\SeguimientoController::class, 'rechazarExpediente']);
+    Route::post('/seguimiento/aceptar', [App\Http\Controllers\SeguimientoController::class, 'aceptarExpediente']);
 
 
 
