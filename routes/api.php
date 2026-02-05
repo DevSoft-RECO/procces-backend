@@ -79,6 +79,7 @@ Route::post('/documentos/check', [App\Http\Controllers\NuevoExpedienteController
 
     // Seguimiento
     Route::post('/seguimiento/enviar-secretaria', [App\Http\Controllers\SeguimientoController::class, 'enviarASecretaria']);
+    Route::get('/seguimiento/buzon-secretaria', [App\Http\Controllers\SeguimientoController::class, 'buzonSecretaria']);
 
 
 
