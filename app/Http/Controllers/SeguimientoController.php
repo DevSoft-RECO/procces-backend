@@ -25,14 +25,16 @@ class SeguimientoController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Crear registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::create([
-                'id_expediente' => $codigo,
-                'id_estado' => 1, // 1: Enviado a Secretaria
-                'enviado_a_archivos' => false,
-                'observacion_envio' => 'Expediente enviado inicialmente a secretaría.',
-                'observacion_rechazo' => null
-            ]);
+            // 1. Actualizar o Crear registro en seguimiento_expedientes
+            $seguimiento = SeguimientoExpediente::updateOrCreate(
+                ['id_expediente' => $codigo],
+                [
+                    'id_estado' => 1, // 1: Enviado a Secretaria
+                    'enviado_a_archivos' => false,
+                    'observacion_envio' => 'Expediente enviado inicialmente a secretaría.',
+                    'observacion_rechazo' => null // Limpiar rechazo anterior si hubo
+                ]
+            );
 
             // 2. Actualizar o Crear cronología en seguimiento_fechas
             // Use updateOrCreate since it's 1:1
@@ -58,9 +60,6 @@ class SeguimientoController extends Controller
         }
     }
     /**
-     * Obtener expedientes en el buzón de Secretaría (Estado 1).
-     */
-    /**
      * Obtener expedientes en el buzón de Secretaría.
      * Filtra por el ÚLTIMO estado registrado.
      * Default: 1 (Enviado a Secretaria).
@@ -70,13 +69,10 @@ class SeguimientoController extends Controller
     {
         $estado = $request->query('status', 1);
 
-        // Obtener expedientes cuyo ÚLTIMO estado sea $estado
-        $expedientes = NuevoExpediente::where(function ($query) use ($estado) {
-            $query->whereRaw("
-                (SELECT id_estado FROM seguimiento_expedientes
-                 WHERE id_expediente = nuevos_expedientes.codigo_cliente
-                 ORDER BY id_seguimiento DESC LIMIT 1) = ?
-            ", [$estado]);
+        // Obtener expedientes cuyo estado actual sea $estado
+        // Al ser 1:1 ahora, la subquery es más simple o se puede usar whereHas
+        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
+            $query->where('id_estado', $estado);
         })
         ->with('fechas') // Eager load fechas
         ->orderBy('fecha_inicio', 'desc')
@@ -104,14 +100,16 @@ class SeguimientoController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Crear registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::create([
-                'id_expediente' => $codigo,
-                'id_estado' => 2, // 2: Rechazado / Regresado a Asesores
-                'enviado_a_archivos' => false,
-                'observacion_envio' => null,
-                'observacion_rechazo' => $observacion
-            ]);
+            // 1. Actualizar registro en seguimiento_expedientes
+            $seguimiento = SeguimientoExpediente::updateOrCreate(
+                ['id_expediente' => $codigo],
+                [
+                    'id_estado' => 2, // 2: Rechazado / Regresado a Asesores
+                    'enviado_a_archivos' => false,
+                    'observacion_envio' => null,
+                    'observacion_rechazo' => $observacion
+                ]
+            );
 
             // 2. Actualizar fecha de retorno en seguimiento_fechas
             SeguimientoFecha::updateOrCreate(
