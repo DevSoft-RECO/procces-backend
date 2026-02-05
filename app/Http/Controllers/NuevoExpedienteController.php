@@ -24,7 +24,7 @@ class NuevoExpedienteController extends Controller
                   ->orWhere('cui', 'like', "%{$search}%");
         }
 
-        $expedientes = $query->orderBy('created_at', 'desc')->paginate(10);
+        $expedientes = $query->with('garantias', 'documentos.tipoDocumento')->orderBy('created_at', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,
@@ -54,15 +54,18 @@ class NuevoExpedienteController extends Controller
         try {
             DB::beginTransaction();
 
-            $expediente->garantias()->attach($request->garantia_id, [
-                'codeudor1' => $request->codeudor1,
-                'codeudor2' => $request->codeudor2,
-                'codeudor3' => $request->codeudor3,
-                'codeudor4' => $request->codeudor4,
-                'observacion1' => $request->observacion1,
-                'observacion2' => $request->observacion2,
-                'observacion3' => $request->observacion3,
-                'observacion4' => $request->observacion4,
+            // Sync para asegurar SOLO UNA garantía por expediente (reemplaza anteriores si hubieran)
+            $expediente->garantias()->sync([
+                $request->garantia_id => [
+                    'codeudor1' => $request->codeudor1,
+                    'codeudor2' => $request->codeudor2,
+                    'codeudor3' => $request->codeudor3,
+                    'codeudor4' => $request->codeudor4,
+                    'observacion1' => $request->observacion1,
+                    'observacion2' => $request->observacion2,
+                    'observacion3' => $request->observacion3,
+                    'observacion4' => $request->observacion4,
+                ]
             ]);
 
             DB::commit();
@@ -197,6 +200,28 @@ class NuevoExpedienteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al procesar el documento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Desvincular un documento de un expediente.
+     */
+    public function detachDocumento($codigoCliente, $documentoId)
+    {
+        $expediente = NuevoExpediente::findOrFail($codigoCliente);
+
+        try {
+            $expediente->documentos()->detach($documentoId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento desvinculado correctamente.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al desvincular el documento: ' . $e->getMessage()
             ], 500);
         }
     }
