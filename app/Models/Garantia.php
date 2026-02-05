@@ -9,7 +9,7 @@ class Garantia extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre'];
+    protected $fillable = ['nombre', 'desplegables'];
 
     /**
      * Get the details (pivot entries) stored for this warranty.

@@ -26,6 +26,7 @@ class GarantiaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'desplegables' => 'required|boolean'
         ]);
 
         $garantia = Garantia::create($request->all());
@@ -57,6 +58,7 @@ class GarantiaController extends Controller
 
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'desplegables' => 'required|boolean'
         ]);
 
         $garantia->update($request->all());
