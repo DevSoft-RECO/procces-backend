@@ -24,7 +24,9 @@ class NuevoExpedienteController extends Controller
                   ->orWhere('cui', 'like', "%{$search}%");
         }
 
-        $expedientes = $query->with('garantias', 'documentos.tipoDocumento')->orderBy('created_at', 'desc')->paginate(10);
+        $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
+            $query->orderBy('id_seguimiento', 'desc');
+        }])->orderBy('created_at', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,
