@@ -108,6 +108,10 @@ class NuevoExpedienteController extends Controller
             'garantias',
             'documentos.tipoDocumento',
             'documentos.registroPropiedad',
+            'documentos' => function($query) {
+                $query->with(['tipoDocumento', 'registroPropiedad'])
+                      ->withCount('nuevosExpedientes');
+            },
             'seguimientos' => function($query) {
                 $query->orderBy('id_seguimiento', 'desc');
             }
@@ -231,6 +235,137 @@ class NuevoExpedienteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al desvincular el documento: ' . $e->getMessage()
+            ], 500);
+    }
+}
+
+    /**
+     * Actualizar documento existente.
+     * Restricción: Solo si está asociado a 1 o menos expedientes.
+     */
+    public function updateDocumento(Request $request, $id)
+    {
+        $documento = \App\Models\Documento::findOrFail($id);
+
+        // Security Check: Only allow edit if linked to 1 or fewer expedientes
+        if ($documento->nuevosExpedientes()->count() > 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este documento está asociado a múltiples expedientes. No se puede editar directamente.'
+            ], 403);
+        }
+
+        $request->validate([
+            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+            'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
+            'numero' => 'nullable|string|max:30',
+            // Add other fields as necessary based on your model
+        ]);
+
+        try {
+            $documento->update($request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento actualizado correctamente.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar documento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar datos de la garantía en el expediente (pivot).
+     */
+    public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId)
+    {
+        $expediente = NuevoExpediente::findOrFail($expedienteId);
+
+        try {
+            DB::beginTransaction();
+
+            $expediente->garantias()->updateExistingPivot($garantiaId, [
+                'codeudor1' => $request->codeudor1,
+                'codeudor2' => $request->codeudor2,
+                'codeudor3' => $request->codeudor3,
+                'codeudor4' => $request->codeudor4,
+                'observacion1' => $request->observacion1,
+                'observacion2' => $request->observacion2,
+                'observacion3' => $request->observacion3,
+                'observacion4' => $request->observacion4,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Garantía actualizada correctamente.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar garantía: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cambiar el tipo de garantía (reemplazar la garantía actual por otra).
+     * Mantiene los datos del pivot (codeudores, observaciones).
+     */
+    public function changeGarantiaType(Request $request, $expedienteId, $garantiaId)
+    {
+        $request->validate([
+            'nueva_garantia_id' => 'required|exists:garantias,id'
+        ]);
+
+        $expediente = NuevoExpediente::findOrFail($expedienteId);
+        $nuevaGarantiaId = $request->nueva_garantia_id;
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Get current pivot data
+            $currentGarantia = $expediente->garantias()->where('garantia_id', $garantiaId)->first();
+
+            if (!$currentGarantia) {
+                return response()->json(['success' => false, 'message' => 'Garantía no encontrada en este expediente.'], 404);
+            }
+
+            $pivotData = [
+                'codeudor1' => $currentGarantia->pivot->codeudor1,
+                'codeudor2' => $currentGarantia->pivot->codeudor2,
+                'codeudor3' => $currentGarantia->pivot->codeudor3,
+                'codeudor4' => $currentGarantia->pivot->codeudor4,
+                'observacion1' => $currentGarantia->pivot->observacion1,
+                'observacion2' => $currentGarantia->pivot->observacion2,
+                'observacion3' => $currentGarantia->pivot->observacion3,
+                'observacion4' => $currentGarantia->pivot->observacion4,
+            ];
+
+            // 2. Detach old
+            $expediente->garantias()->detach($garantiaId);
+
+            // 3. Attach new with old pivot data
+            $expediente->garantias()->attach($nuevaGarantiaId, $pivotData);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tipo de garantía actualizado correctamente.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar tipo de garantía: ' . $e->getMessage()
             ], 500);
         }
     }

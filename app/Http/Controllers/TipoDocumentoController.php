@@ -10,9 +10,14 @@ class TipoDocumentoController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $tipoDocumentos = TipoDocumento::paginate(10);
+        if ($request->has('all')) {
+            $tipoDocumentos = TipoDocumento::all();
+        } else {
+            $tipoDocumentos = TipoDocumento::paginate(10);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $tipoDocumentos

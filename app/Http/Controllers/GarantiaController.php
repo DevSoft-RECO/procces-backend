@@ -10,9 +10,14 @@ class GarantiaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $garantias = Garantia::paginate(10);
+        if ($request->has('all')) {
+            $garantias = Garantia::all();
+        } else {
+            $garantias = Garantia::paginate(10);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $garantias

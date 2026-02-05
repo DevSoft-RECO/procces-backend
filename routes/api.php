@@ -47,7 +47,6 @@ Route::middleware('sso')->group(function () {
     });
 
     Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
-    Route::apiResource('garantias', App\Http\Controllers\GarantiaController::class);
     Route::apiResource('tipo-documentos', App\Http\Controllers\TipoDocumentoController::class);
 
     // Agencias y Sincronización
@@ -76,6 +75,9 @@ Route::post('/nuevos-expedientes/{id}/documentos', [App\Http\Controllers\NuevoEx
 Route::delete('/nuevos-expedientes/{id}/documentos/{documentoId}', [App\Http\Controllers\NuevoExpedienteController::class, 'detachDocumento']);
 Route::get('/nuevos-expedientes/{id}/detalles', [App\Http\Controllers\NuevoExpedienteController::class, 'getDetalles']);
 Route::post('/documentos/check', [App\Http\Controllers\NuevoExpedienteController::class, 'checkDocumento']);
+Route::put('/documentos/{id}', [App\Http\Controllers\NuevoExpedienteController::class, 'updateDocumento']);
+Route::put('/nuevos-expedientes/{id}/garantias/{garantiaId}', [App\Http\Controllers\NuevoExpedienteController::class, 'updateGarantiaPivot']);
+Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App\Http\Controllers\NuevoExpedienteController::class, 'changeGarantiaType']);
 
     // Seguimiento
     Route::post('/seguimiento/enviar-secretaria', [App\Http\Controllers\SeguimientoController::class, 'enviarASecretaria']);
