@@ -68,6 +68,15 @@ class NuevoExpediente extends Model
      */
     public function seguimientos()
     {
-        return $this->hasMany(SeguimientoExpediente::class, 'nuevo_expediente_id', 'codigo_cliente');
+        return $this->hasMany(SeguimientoExpediente::class, 'id_expediente', 'codigo_cliente');
+    }
+
+    /**
+     * Get the tracking dates for the expediente.
+     */
+    public function fechas()
+    {
+        // 1:1 relationship
+        return $this->hasOne(SeguimientoFecha::class, 'id_expediente', 'codigo_cliente');
     }
 }

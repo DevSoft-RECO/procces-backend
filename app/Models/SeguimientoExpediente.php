@@ -10,13 +10,14 @@ class SeguimientoExpediente extends Model
     use HasFactory;
 
     protected $table = 'seguimiento_expedientes';
+    protected $primaryKey = 'id_seguimiento';
 
     protected $fillable = [
-        'nuevo_expediente_id',
-        'usuario',
-        'paso',
-        'estado',
-        'observacion',
+        'id_expediente',
+        'id_estado',
+        'enviado_a_archivos',
+        'observacion_envio',
+        'observacion_rechazo',
     ];
 
     /**
@@ -24,6 +25,6 @@ class SeguimientoExpediente extends Model
      */
     public function nuevoExpediente()
     {
-        return $this->belongsTo(NuevoExpediente::class, 'nuevo_expediente_id', 'codigo_cliente');
+        return $this->belongsTo(NuevoExpediente::class, 'id_expediente', 'codigo_cliente');
     }
 }

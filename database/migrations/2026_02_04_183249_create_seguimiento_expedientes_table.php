@@ -12,24 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('seguimiento_expedientes', function (Blueprint $table) {
-            $table->id();
+            $table->id('id_seguimiento');
 
-            $table->unsignedBigInteger('nuevo_expediente_id')->index();
-            $table->foreign('nuevo_expediente_id')
+            $table->unsignedBigInteger('id_expediente')->index();
+            $table->foreign('id_expediente')
                   ->references('codigo_cliente')
                   ->on('nuevos_expedientes')
                   ->onDelete('cascade');
 
-            // Assuming users table exists and id is unsignedBigInteger
-            // If authentication uses a different logic (like username), adapt here.
-            // Using a generic 'usuario_id' or 'usuario' string if user table structure is unsure
-            // Based on previous files, 'usuario_asesor' is a string.
-             //$table->unsignedBigInteger('usuario_id')->nullable();
-             $table->string('usuario', 100)->nullable(); // Recording username for simplicity based on current auth style
+            $table->integer('id_estado')->comment('1 al 6');
 
-            $table->string('paso', 100)->comment('Etapa del flujo: Ingreso, Revision, etc');
-            $table->string('estado', 50)->comment('Estado en esa etapa: Pendiente, Aprobado, Rechazado');
-            $table->text('observacion')->nullable();
+            $table->boolean('enviado_a_archivos')->default(false)->comment('Flag para control administrativo');
+
+            $table->text('observacion_envio')->nullable()->comment('Instrucciones cuando avanza');
+            $table->text('observacion_rechazo')->nullable()->comment('Motivo de retorno (Estado 2)');
 
             $table->timestamps();
         });
