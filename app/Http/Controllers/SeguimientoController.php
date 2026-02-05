@@ -31,7 +31,7 @@ class SeguimientoController extends Controller
                 [
                     'id_estado' => 1, // 1: Enviado a Secretaria
                     'enviado_a_archivos' => false,
-                    'observacion_envio' => 'Expediente enviado inicialmente a secretaría.',
+                    'observacion_envio' => null,
                     'observacion_rechazo' => null // Limpiar rechazo anterior si hubo
                 ]
             );
