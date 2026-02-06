@@ -35,6 +35,12 @@ class SeguimientoFecha extends Model
         'f_enviado_archivos',
         'f_enviado_protocolos',
         'f_almacenado_admin',
+
+        'f_aceptado_secretaria_credito',
+        'f_enviado_abogado',
+        'f_aceptado_abogado',
+        'f_enviado_secretaria_credito',
+
         'f_ultimo_rechazo',
     ];
 
@@ -45,6 +51,12 @@ class SeguimientoFecha extends Model
         'f_enviado_archivos' => 'datetime',
         'f_enviado_protocolos' => 'datetime',
         'f_almacenado_admin' => 'datetime',
+
+        'f_aceptado_secretaria_credito' => 'datetime',
+        'f_enviado_abogado' => 'datetime',
+        'f_aceptado_abogado' => 'datetime',
+        'f_enviado_secretaria_credito' => 'datetime',
+
         'f_ultimo_rechazo' => 'datetime',
     ];
 
