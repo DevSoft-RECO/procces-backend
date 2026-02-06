@@ -17,11 +17,13 @@ class SeguimientoExpediente extends Model
         'id_estado',
         'id_estado_secundario',
         'enviado_a_archivos',
+        'archivo_administrativo',
         'observacion_envio',
         'observacion_rechazo',
         'es_un_pagare',
         'numero_contrato',
         'path_contrato',
+
     ];
 
     /**
