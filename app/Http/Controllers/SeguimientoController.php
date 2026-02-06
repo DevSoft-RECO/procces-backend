@@ -81,7 +81,8 @@ class SeguimientoController extends Controller
                       ->where(function ($sub) {
                           $sub->where('id_estado_secundario', '!=', 6)
                               ->orWhereNull('id_estado_secundario');
-                      });
+                      })
+                      ->where('archivo_administrativo', '!=', 'Si'); // Excluir archivados administrativamente
             })
             ->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')

@@ -65,4 +65,68 @@ class SecretariaAgenciaController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Archivar Administrativamente (estado secundario).
+     * Marca archivo_administrativo = 'Si'.
+     */
+    public function archivarAdministrativamente(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+        ]);
+
+        $codigoCliente = $request->codigo_cliente;
+
+        try {
+            DB::beginTransaction();
+
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigoCliente]);
+
+            // Validar que esté aceptado (>= 3)
+            if ($seguimiento->id_estado < 3) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'El expediente debe estar aceptado para archivar.'
+                ], 422);
+            }
+
+            $seguimiento->archivo_administrativo = 'Si';
+            $seguimiento->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente archivado administrativamente.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al archivar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Buzón de Archivados Administrativamente.
+     * Lista expedientes con archivo_administrativo = 'Si'.
+     */
+    public function buzonArchivados(Request $request)
+    {
+        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+            $query->where('archivo_administrativo', 'Si');
+        })
+        ->with(['fechas', 'seguimientos.estado'])
+        ->orderBy('fecha_inicio', 'desc')
+        ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
 }
