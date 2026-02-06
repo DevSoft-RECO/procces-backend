@@ -23,6 +23,8 @@ class SeguimientoExpediente extends Model
         'es_un_pagare',
         'numero_contrato',
         'path_contrato',
+        'bufete_id',
+        'recibi_pagare',
 
     ];
 
