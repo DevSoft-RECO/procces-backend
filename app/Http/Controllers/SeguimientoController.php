@@ -246,4 +246,47 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Enviar a Protocolo (Estado 3 -> 5).
+     */
+    public function enviarProtocolo(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+        ]);
+
+        $codigo = $request->codigo_cliente;
+
+        try {
+            DB::beginTransaction();
+
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+
+            $seguimiento->id_estado = 5; // 5: Enviar a Protocolo
+            // Mantenemos otros campos igual
+            $seguimiento->save();
+
+            // Actualizar fecha protocolo
+             SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $codigo],
+                ['f_enviado_protocolos' => Carbon::now()]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente enviado a protocolo correctamente.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+             return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar a protocolo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
