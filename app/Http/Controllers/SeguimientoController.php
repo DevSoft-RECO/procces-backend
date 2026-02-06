@@ -182,4 +182,66 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+    /**
+     * Enviar a Archivo (Estado 1 -> 4 si es garantía real, o solo marcar enviado).
+     */
+    public function enviarArchivo(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'tiene_garantia_real' => 'required|boolean', // Enviado desde frontend checkbox/option
+            'observacion' => 'required|string|max:1000'
+        ]);
+
+        $codigo = $request->codigo_cliente;
+        // La lógica de "envio a archivos" traducida:
+        // Check "Tiene Garantía Real" (Si/No) -> mapped to enviado_a_archivos ('Si'/'No')
+        // Si CHECKED (Si): Guardar 'Si', Observación, y estado secundario = 4.
+        // Si UNCHECKED (No): Guardar 'No', Observación. (Y ahí muere, no cambio estado secundario).
+
+        $enviadoAArchivos = $request->tiene_garantia_real ? 'Si' : 'No';
+
+        try {
+            DB::beginTransaction();
+
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+
+            $seguimiento->enviado_a_archivos = $enviadoAArchivos;
+            $seguimiento->observacion_envio = $request->observacion;
+
+            if ($request->tiene_garantia_real) {
+                $seguimiento->id_estado_secundario = 4; // Register secondary state 4
+                // Podríamos cambiar el estado principal si el flujo lo requiere, pero el usuario dijo "se registra el estado 4 en la columna id_estado_adicional"
+            } else {
+                 // Usuario dijo "ahí muere esa acción".
+                 // Mantenemos estado actual (3) o limpiamos secundario?
+                 // Asumiremos que si no es garantía real, no entra al flujo paralelo (secundario NULL o sin cambios).
+                 // Forzaremos NULL por consistencia si cambia de opinión:
+                 $seguimiento->id_estado_secundario = null;
+            }
+
+            $seguimiento->save();
+
+            // Actualizar fecha de envío a archivo (si aplica)
+             SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $codigo],
+                ['f_envio_archivo' => Carbon::now()]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Información de archivo actualizada.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+             return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar a archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
