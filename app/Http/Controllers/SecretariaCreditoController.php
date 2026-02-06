@@ -208,12 +208,13 @@ class SecretariaCreditoController extends Controller
         }
     }
     /**
-     * Obtener expedientes en manos de abogados (Estado 8).
+     * Obtener expedientes en manos de abogados (Estado 8, 9 y 10).
+     * Incluye: Enviado a abogado (8), Recibido por abogado (9), Devuelto por abogado (10).
      */
     public function buzonAbogados(Request $request)
     {
         $expedientes = \App\Models\NuevoExpediente::whereHas('seguimientos', function ($query) {
-            $query->where('id_estado', 8)
+            $query->whereIn('id_estado', [8, 9, 10])
                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
         })
         ->with(['seguimientos' => function ($query) {
