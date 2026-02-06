@@ -96,6 +96,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/secretaria-credito/enviar-abogado', [App\Http\Controllers\SecretariaCreditoController::class, 'enviarAbogado']);
     Route::get('/secretaria-credito/abogados', [App\Http\Controllers\SecretariaCreditoController::class, 'buzonAbogados']);
     Route::get('/abogado/buzon', [App\Http\Controllers\AbogadoController::class, 'buzon']);
+    Route::post('/abogado/recibir', [App\Http\Controllers\AbogadoController::class, 'recibir']);
 
     // Secretaria Agencia
     Route::post('/secretaria-agencia/adjuntar-contrato', [App\Http\Controllers\SecretariaAgenciaController::class, 'adjuntarContrato']);
