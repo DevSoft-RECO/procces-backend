@@ -161,6 +161,7 @@ class SecretariaCreditoController extends Controller
     {
         $request->validate([
             'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'bufete_id' => 'required|exists:bufetes,id',
         ]);
 
         try {
@@ -180,8 +181,9 @@ class SecretariaCreditoController extends Controller
                 ], 404);
             }
 
-            // 2. Cambiar id_estado a 8
+            // 2. Cambiar id_estado a 8 y guardar bufete
             $seguimiento->id_estado = 8; // 8: En manos de abogado / Jurídico
+            $seguimiento->bufete_id = $request->bufete_id;
             $seguimiento->save();
 
             // 3. Actualizar fecha f_enviado_abogado
