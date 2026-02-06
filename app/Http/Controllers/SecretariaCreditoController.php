@@ -207,4 +207,23 @@ class SecretariaCreditoController extends Controller
             ], 500);
         }
     }
+    /**
+     * Obtener expedientes en manos de abogados (Estado 8).
+     */
+    public function buzonAbogados(Request $request)
+    {
+        $expedientes = \App\Models\NuevoExpediente::whereHas('seguimientos', function ($query) {
+            $query->where('id_estado', 8)
+                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+        })
+        ->with(['seguimientos' => function ($query) {
+            $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
+        }, 'fechas'])
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
 }

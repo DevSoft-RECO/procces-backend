@@ -43,4 +43,12 @@ class SeguimientoExpediente extends Model
     {
         return $this->belongsTo(TipoEstado::class, 'id_estado', 'id');
     }
+
+    /**
+     * Relación con Bufete (Abogado).
+     */
+    public function bufete()
+    {
+        return $this->belongsTo(Bufete::class, 'bufete_id', 'id');
+    }
 }
