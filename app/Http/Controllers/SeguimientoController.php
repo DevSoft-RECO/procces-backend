@@ -31,7 +31,7 @@ class SeguimientoController extends Controller
 
             // Update only state-related fields without wiping others
             $seguimiento->id_estado = 1; // 1: Enviado a Secretaria
-            $seguimiento->enviado_a_archivos = false;
+            $seguimiento->enviado_a_archivos = 'No';
 
             // Preserve existing observations unless explicitly changing
             // We do NOT clear observacion_envio or observacion_rechazo here to keep history as requested.
@@ -108,7 +108,7 @@ class SeguimientoController extends Controller
             $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
 
             $seguimiento->id_estado = 2; // 2: Rechazado / Regresado a Asesores
-            $seguimiento->enviado_a_archivos = false;
+            $seguimiento->enviado_a_archivos = 'No';
             $seguimiento->observacion_rechazo = $observacion; // Update rejection reason
 
             // Do NOT wipe observacion_envio
