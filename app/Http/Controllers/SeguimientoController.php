@@ -72,14 +72,29 @@ class SeguimientoController extends Controller
     {
         $estado = $request->query('status', 1);
 
-        // Obtener expedientes cuyo estado actual sea $estado
-        // Al ser 1:1 ahora, la subquery es más simple o se puede usar whereHas
-        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
-            $query->where('id_estado', $estado);
-        })
-        ->with('fechas') // Eager load fechas
-        ->orderBy('fecha_inicio', 'desc')
-        ->paginate(15);
+        if ($estado == 3) {
+            // Lógica especial para Buzón Aceptados (Agencia):
+            // Debe mostrarse si id_estado >= 3 (ya fue aceptado)
+            // Y mantenerse visible MIENTRAS id_estado_secundario != 6
+            $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+                $query->where('id_estado', '>=', 3)
+                      ->where(function ($sub) {
+                          $sub->where('id_estado_secundario', '!=', 6)
+                              ->orWhereNull('id_estado_secundario');
+                      });
+            })
+            ->with('fechas')
+            ->orderBy('fecha_inicio', 'desc')
+            ->paginate(15);
+        } else {
+            // Lógica estándar para estados 1 (Buzón) y 2 (Regresados)
+            $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
+                $query->where('id_estado', $estado);
+            })
+            ->with('fechas')
+            ->orderBy('fecha_inicio', 'desc')
+            ->paginate(15);
+        }
 
         return response()->json([
             'success' => true,

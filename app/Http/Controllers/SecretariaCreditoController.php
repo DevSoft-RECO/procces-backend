@@ -117,6 +117,10 @@ class SecretariaCreditoController extends Controller
         // Filtrar por el Último estado = 7
         $query->whereHas('seguimientos', function ($q) {
             $q->where('id_estado', 7)
+              ->where(function ($sub) {
+                  $sub->where('id_estado_secundario', '!=', 6)
+                      ->orWhereNull('id_estado_secundario');
+              })
               ->whereRaw('created_at = (
                   SELECT MAX(s2.created_at)
                   FROM seguimiento_expedientes as s2
