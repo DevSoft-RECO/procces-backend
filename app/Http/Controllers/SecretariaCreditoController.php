@@ -19,8 +19,8 @@ class SecretariaCreditoController extends Controller
         // Usamos whereHas con una subquery para asegurar que sea el ULTIMO seguimiento
         $query->whereHas('seguimientos', function ($q) {
             $q->where('id_estado', 5)
-              ->whereRaw('id_seguimiento = (
-                  SELECT MAX(s2.id_seguimiento)
+              ->whereRaw('created_at = (
+                  SELECT MAX(s2.created_at)
                   FROM seguimiento_expedientes as s2
                   WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
               )');
@@ -40,6 +40,7 @@ class SecretariaCreditoController extends Controller
         $expedientes = $query->with([
             'garantias',
             'documentos.tipoDocumento',
+            'fechas', // Eager load 'fechas' relationship
             'seguimientos' => function($query) {
                 $query->orderBy('id_seguimiento', 'desc');
             }
