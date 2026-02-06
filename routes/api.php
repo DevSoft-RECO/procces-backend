@@ -91,5 +91,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Secretaria Credito
     Route::get('/secretaria-credito/solicitudes', [App\Http\Controllers\SecretariaCreditoController::class, 'index']);
+
+    // Secretaria Agencia
+    Route::post('/secretaria-agencia/adjuntar-contrato', [App\Http\Controllers\SecretariaAgenciaController::class, 'adjuntarContrato']);
 });
 

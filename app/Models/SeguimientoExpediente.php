@@ -19,6 +19,9 @@ class SeguimientoExpediente extends Model
         'enviado_a_archivos',
         'observacion_envio',
         'observacion_rechazo',
+        'es_un_pagare',
+        'numero_contrato',
+        'path_contrato',
     ];
 
     /**
