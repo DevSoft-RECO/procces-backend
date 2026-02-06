@@ -83,7 +83,7 @@ class SeguimientoController extends Controller
                               ->orWhereNull('id_estado_secundario');
                       });
             })
-            ->with('fechas')
+            ->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')
             ->paginate(15);
         } else {
@@ -91,7 +91,7 @@ class SeguimientoController extends Controller
             $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
                 $query->where('id_estado', $estado);
             })
-            ->with('fechas')
+            ->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')
             ->paginate(15);
         }

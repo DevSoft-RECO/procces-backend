@@ -31,4 +31,12 @@ class SeguimientoExpediente extends Model
     {
         return $this->belongsTo(NuevoExpediente::class, 'id_expediente', 'codigo_cliente');
     }
+
+    /**
+     * Relación con TipoEstado.
+     */
+    public function estado()
+    {
+        return $this->belongsTo(TipoEstado::class, 'id_estado', 'id');
+    }
 }
