@@ -15,6 +15,7 @@ class SeguimientoExpediente extends Model
     protected $fillable = [
         'id_expediente',
         'id_estado',
+        'id_estado_secundario',
         'enviado_a_archivos',
         'observacion_envio',
         'observacion_rechazo',
