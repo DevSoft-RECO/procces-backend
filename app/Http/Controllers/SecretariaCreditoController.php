@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\NuevoExpediente;
+use Illuminate\Support\Facades\DB;
 
 class SecretariaCreditoController extends Controller
 {
@@ -46,6 +47,102 @@ class SecretariaCreditoController extends Controller
             }
         ])
         ->orderBy('created_at', 'desc') // Or order by modification date
+        ->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
+    /**
+     * Aceptar expediente (Pasar a estado 7).
+     * Modifica el registro existente, cambiando id_estado a 7.
+     */
+    public function aceptar(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $expedienteId = $request->codigo_cliente;
+
+            // 1. Buscar el último seguimiento existente
+            $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
+                            ->orderBy('created_at', 'desc') // Asumimos que queremos modificar el actual/último
+                            ->first();
+
+            if (!$seguimiento) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró seguimiento para este expediente.'
+                ], 404);
+            }
+
+            // 2. Solo cambiar el estado a 7
+            $seguimiento->id_estado = 7;
+            $seguimiento->save();
+
+            // 3. Actualizar fechas
+            \App\Models\SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $expedienteId],
+                ['f_aceptado_secretaria_credito' => now()]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente aceptado correctamente (Estado y fecha actualizados).'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al aceptar expediente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Listado de expedientes en estado 7 (Aceptados).
+     */
+    public function buzonAceptados(Request $request)
+    {
+        $query = NuevoExpediente::query();
+
+        // Filtrar por el Último estado = 7
+        $query->whereHas('seguimientos', function ($q) {
+            $q->where('id_estado', 7)
+              ->whereRaw('created_at = (
+                  SELECT MAX(s2.created_at)
+                  FROM seguimiento_expedientes as s2
+                  WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
+              )');
+        });
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('cui', 'like', "%{$search}%");
+            });
+        }
+
+        $expedientes = $query->with([
+            'garantias',
+            'documentos.tipoDocumento',
+            'fechas',
+            'seguimientos' => function($query) {
+                $query->orderBy('id_seguimiento', 'desc');
+            }
+        ])
+        ->orderBy('created_at', 'desc')
         ->paginate(10);
 
         return response()->json([
