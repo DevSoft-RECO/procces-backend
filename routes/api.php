@@ -100,6 +100,10 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/abogado/enviar-secretaria', [App\Http\Controllers\AbogadoController::class, 'enviarSecretaria']);
     Route::get('/abogado/devueltos', [App\Http\Controllers\AbogadoController::class, 'devueltos']);
 
+    Route::get('/secretaria-credito/escanear-documentos', [App\Http\Controllers\SecretariaCreditoController::class, 'escanearDocumentos']);
+    Route::post('/secretaria-credito/guardar-escaneado', [App\Http\Controllers\SecretariaCreditoController::class, 'guardarEscaneado']);
+    Route::get('/secretaria-credito/ver-contrato/{codigoCliente}', [App\Http\Controllers\SecretariaCreditoController::class, 'verContrato']);
+
     // Secretaria Agencia
     Route::post('/secretaria-agencia/adjuntar-contrato', [App\Http\Controllers\SecretariaAgenciaController::class, 'adjuntarContrato']);
     Route::post('/secretaria-agencia/archivar-administrativo', [App\Http\Controllers\SecretariaAgenciaController::class, 'archivarAdministrativamente']);

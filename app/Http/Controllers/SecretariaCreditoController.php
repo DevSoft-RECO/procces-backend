@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\NuevoExpediente;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class SecretariaCreditoController extends Controller
 {
@@ -226,5 +227,121 @@ class SecretariaCreditoController extends Controller
             'success' => true,
             'data' => $expedientes
         ]);
+    }
+    /**
+     * Obtener expedientes devueltos por abogados (Estado 10) para escaneo.
+     */
+    public function escanearDocumentos(Request $request)
+    {
+        $query = NuevoExpediente::query();
+
+        // Filtrar por el Último estado = 10 (Devuelto por Abogado)
+        $query->whereHas('seguimientos', function ($q) {
+            $q->where('id_estado', 10)
+              ->whereRaw('created_at = (
+                  SELECT MAX(s2.created_at)
+                  FROM seguimiento_expedientes as s2
+                  WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
+              )');
+        });
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('cui', 'like', "%{$search}%");
+            });
+        }
+
+        $expedientes = $query->with([
+            'garantias',
+            'documentos.tipoDocumento',
+            'fechas',
+            'seguimientos' => function($query) {
+                $query->orderBy('created_at', 'desc')->with(['bufete.user', 'bufete.agencia']);
+            }
+        ])
+        ->orderBy('created_at', 'desc')
+        ->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
+
+    /**
+     * Guardar el archivo escaneado del expediente.
+     */
+    /**
+     * Guardar el archivo escaneado del expediente (Contrato).
+     */
+    public function guardarEscaneado(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'file' => 'required|file|mimes:pdf|max:10240', // Max 10MB
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $expedienteId = $request->codigo_cliente;
+            $file = $request->file('file');
+
+            // 1. Guardar el archivo físico
+            // Sugerencia: Guardar en una carpeta específica, ej: 'expedientes/contratos_escaneados'
+            $path = $file->store('expedientes/contratos_escaneados', 'public');
+
+            // 2. Buscar el último seguimiento (Debería ser el estado 10)
+            $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+
+            if (!$seguimiento) {
+                // Should not happen if flow is correct
+                throw new \Exception("No se encontró seguimiento para el expediente.");
+            }
+
+            // 3. Actualizar el campo path_contrato
+            $seguimiento->path_contrato = $path;
+            $seguimiento->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contrato escaneado guardado correctamente.',
+                'data' => [
+                    'path_contrato' => $path
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar contrato escaneado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Ver/Descargar el contrato escaneado.
+     */
+    public function verContrato($codigoCliente)
+    {
+        // 1. Buscar el último seguimiento con contrato
+        $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+                        ->whereNotNull('path_contrato')
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+        if (!$seguimiento || !Storage::disk('public')->exists($seguimiento->path_contrato)) {
+            return response()->json(['message' => 'Contrato no encontrado.'], 404);
+        }
+
+        return Storage::disk('public')->download($seguimiento->path_contrato);
     }
 }
