@@ -193,4 +193,54 @@ class SecretariaAgenciaController extends Controller
             ], 500);
         }
     }
+    /**
+     * Archivar Pagaré (Estado 6).
+     */
+    public function archivarPagare(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+        ]);
+
+        $codigo = $request->codigo_cliente;
+
+        try {
+            DB::beginTransaction();
+
+            // Buscar el último seguimiento del expediente
+            $seguimiento = SeguimientoExpediente::where('id_expediente', $codigo)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$seguimiento) {
+                return response()->json(['success' => false, 'message' => 'Seguimiento no encontrado.'], 404);
+            }
+
+            // Cambiar estado a 6 (Archivado) y marcar como administrativo
+            $seguimiento->id_estado = 6;
+            $seguimiento->archivo_administrativo = 'Si';
+            $seguimiento->save();
+
+            // Registrar fecha de almacenado administrativo
+            \App\Models\SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $codigo],
+                ['f_almacenado_admin' => \Carbon\Carbon::now()]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente archivado correctamente.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al archivar pagaré: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

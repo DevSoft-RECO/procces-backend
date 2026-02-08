@@ -373,7 +373,7 @@ class SecretariaCreditoController extends Controller
             // 2. Actualizar columna es_un_pagare y el estado
             $seguimiento->es_un_pagare = $esPagare;
             // Determine new state
-            $nuevoEstado = ($esPagare === 'si') ? 5 : 4; // 5 = Protocolos, 4 = Archivo
+            $nuevoEstado = ($esPagare === 'si') ? 1 : 4; // 5 = Protocolos, 4 = Archivo
             $seguimiento->id_estado = $nuevoEstado;
             $seguimiento->save();
 
