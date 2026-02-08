@@ -11,17 +11,31 @@ class NuevoExpedienteController extends Controller
     /**
      * Listado de expedientes nuevos (Mis Expedientes).
      */
+    /**
+     * Listado de expedientes nuevos (Mis Expedientes).
+     */
     public function index(Request $request)
     {
-        // Se puede agregar filtro por usuario si es necesario en el futuro
-        // Por ahora listamos todos, ordenados por fecha de creación o inicio.
         $query = NuevoExpediente::query();
+
+        // Filtro por Tab (Estado del flujo)
+        if ($request->has('tab')) {
+            if ($request->tab === 'nuevos') {
+                // Expedientes SIN seguimiento (aún no enviados)
+                $query->doesntHave('seguimientos');
+            } elseif ($request->tab === 'seguimiento') {
+                // Expedientes CON seguimiento (ya enviados)
+                $query->has('seguimientos');
+            }
+        }
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where('codigo_cliente', 'like', "%{$search}%")
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
                   ->orWhere('nombre_asociado', 'like', "%{$search}%")
                   ->orWhere('cui', 'like', "%{$search}%");
+            });
         }
 
         $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
