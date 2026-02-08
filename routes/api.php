@@ -110,4 +110,5 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/secretaria-agencia/archivar-administrativamente', [App\Http\Controllers\SecretariaAgenciaController::class, 'archivarAdministrativamente']);
     Route::get('/secretaria-agencia/buzon-archivados', [App\Http\Controllers\SecretariaAgenciaController::class, 'buzonArchivados']);
     Route::get('/secretaria-agencia/buzon-pagares', [App\Http\Controllers\SecretariaAgenciaController::class, 'buzonPagares']);
+    Route::post('/secretaria-agencia/recibir-pagare', [App\Http\Controllers\SecretariaAgenciaController::class, 'recibirPagare']);
 });

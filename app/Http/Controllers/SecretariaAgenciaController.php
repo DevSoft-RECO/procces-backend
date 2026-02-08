@@ -150,4 +150,47 @@ class SecretariaAgenciaController extends Controller
             'data' => $expedientes
         ]);
     }
+    /**
+     * Marcar Pagaré como Recibido.
+     */
+    public function recibirPagare(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+        ]);
+
+        $codigo = $request->codigo_cliente;
+
+        try {
+            DB::beginTransaction();
+
+            // Buscar el último seguimiento del expediente
+            $seguimiento = SeguimientoExpediente::where('id_expediente', $codigo)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$seguimiento) {
+                return response()->json(['success' => false, 'message' => 'Seguimiento no encontrado.'], 404);
+            }
+
+            // Actualizar campo
+            $seguimiento->recibi_pagare = 'si';
+            $seguimiento->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pagaré marcado como recibido.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al recibir pagaré: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
