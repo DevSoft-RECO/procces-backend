@@ -129,4 +129,25 @@ class SecretariaAgenciaController extends Controller
             'data' => $expedientes
         ]);
     }
+    /**
+     * Buzón de Pagarés (Estado 1 y es_un_pagare = 'si').
+     */
+    public function buzonPagares(Request $request)
+    {
+        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+            $query->where('id_estado', 1)
+                  ->where('es_un_pagare', 'si')
+                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+        })
+        ->with(['fechas', 'seguimientos' => function ($query) {
+            $query->orderBy('created_at', 'desc')->with('estado');
+        }])
+        ->orderBy('fecha_inicio', 'desc')
+        ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
 }
