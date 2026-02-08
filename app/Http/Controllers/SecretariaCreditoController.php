@@ -344,4 +344,64 @@ class SecretariaCreditoController extends Controller
 
         return Storage::disk('public')->download($seguimiento->path_contrato);
     }
+
+    /**
+     * Finalizar proceso de escaneo y determinar si es pagaré.
+     */
+    public function finalizarProceso(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'es_pagare' => 'required|in:si,no'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $codigoCliente = $request->codigo_cliente;
+            $esPagare = $request->es_pagare;
+
+            // 1. Obtener el último seguimiento (Estado 10)
+            $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+
+            if (!$seguimiento) {
+                return response()->json(['success' => false, 'message' => 'Expediente no encontrado.'], 404);
+            }
+
+            // 2. Actualizar columna es_un_pagare y el estado
+            $seguimiento->es_un_pagare = $esPagare;
+            // Determine new state
+            $nuevoEstado = ($esPagare === 'si') ? 5 : 4; // 5 = Protocolos, 4 = Archivo
+            $seguimiento->id_estado = $nuevoEstado;
+            $seguimiento->save();
+
+            // 3. (Se eliminó la creación de un nuevo seguimiento, se trabaja sobre el actual)
+
+            // 4. If "No" (State 4), update f_enviado_archivos in seguimiento_fechas
+            if ($esPagare === 'no') {
+                $fechas = \App\Models\SeguimientoFecha::firstOrCreate(
+                    ['id_expediente' => $codigoCliente]
+                );
+                $fechas->f_enviado_archivos = now();
+                $fechas->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Proceso finalizado correctamente.',
+                'nuevo_estado' => $nuevoEstado
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al finalizar proceso: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
