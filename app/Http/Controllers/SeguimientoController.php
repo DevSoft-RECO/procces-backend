@@ -91,6 +91,15 @@ class SeguimientoController extends Controller
             // Lógica estándar para estados 1 (Buzón) y 2 (Regresados)
             $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
                 $query->where('id_estado', $estado);
+
+                // Si es estado 1 (Buzón), excluir los que son Pagarés (es_un_pagare = 'si')
+                // porque esos se ven en "Buzón Pagarés"
+                if ($estado == 1) {
+                    $query->where(function ($sub) {
+                        $sub->where('es_un_pagare', '!=', 'si')
+                            ->orWhereNull('es_un_pagare');
+                    });
+                }
             })
             ->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')
