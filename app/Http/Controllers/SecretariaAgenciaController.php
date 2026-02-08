@@ -118,7 +118,10 @@ class SecretariaAgenciaController extends Controller
     public function buzonArchivados(Request $request)
     {
         $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
-            $query->where('archivo_administrativo', 'Si');
+            $query->where(function ($sub) {
+                $sub->where('archivo_administrativo', 'Si')
+                    ->orWhere('id_estado', 6);
+            });
         })
         ->with(['fechas', 'seguimientos.estado'])
         ->orderBy('fecha_inicio', 'desc')
