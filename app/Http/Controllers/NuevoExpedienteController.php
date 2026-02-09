@@ -262,11 +262,16 @@ class NuevoExpedienteController extends Controller
         $documento = \App\Models\Documento::findOrFail($id);
 
         // Security Check: Only allow edit if linked to 1 or fewer expedientes
+        // UNLESS the user has the special permission
         if ($documento->nuevosExpedientes()->count() > 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este documento está asociado a múltiples expedientes. No se puede editar directamente.'
-            ], 403);
+            if (!$request->user()->tokenCan('editar_documentos_restringidos') &&
+                !$request->user()->hasPermissionTo('editar_documentos_restringidos')) { // Check both token (if using abilities) and direct permission
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este documento está asociado a múltiples expedientes. No se puede editar directamente.'
+                ], 403);
+            }
         }
 
         $request->validate([
