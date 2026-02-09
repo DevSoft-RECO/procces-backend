@@ -115,4 +115,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Archivo Module
     Route::get('/archivo/buzon-recibidos', [App\Http\Controllers\ArchivoController::class, 'buzonRecibidos']);
+
+    // Tracking (Historial Centralizado)
+    Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);
 });
