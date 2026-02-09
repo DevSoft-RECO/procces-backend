@@ -178,7 +178,14 @@ class SecretariaAgenciaController extends Controller
 
             // Actualizar campo
             $seguimiento->recibi_pagare = 'si';
+            $seguimiento->id_estado = 6; // Cambiar a estado 6 (Archivado)
             $seguimiento->save();
+
+            // Registrar fecha de almacenado administrativo
+            \App\Models\SeguimientoFecha::updateOrCreate(
+                ['id_expediente' => $codigo],
+                ['f_almacenado_admin' => \Carbon\Carbon::now()]
+            );
 
             DB::commit();
 
