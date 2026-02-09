@@ -24,8 +24,40 @@ class NuevoExpedienteController extends Controller
                 // Expedientes SIN seguimiento (aún no enviados)
                 $query->doesntHave('seguimientos');
             } elseif ($request->tab === 'seguimiento') {
-                // Expedientes CON seguimiento (ya enviados)
-                $query->has('seguimientos');
+                // Expedientes EN seguimiento activo (NO rechazados/retornados - estado 2)
+                $query->whereHas('seguimientos', function ($q) {
+                    // Filter where LATEST state is NOT 2
+                    // Since we can't easily filter by "latest" in whereHas without subqueries/joins that might be heavy,
+                    // and assuming id_estado 2 is a "current" state logic:
+                    // If we just check if it HAS a state 2, it might correspond to an old rejection?
+                    // But usually index 2 implies it was validated and returned.
+
+                    // Actually, simpler logic for "En Seguimiento":
+                    // Has seguimientos AND the latest one is NOT 2.
+                    // For "Retornados": Has seguimientos AND the latest one IS 2.
+
+                    // Let's use a simpler approach for now consistent with existing logic:
+                    // We'll filter on the relation.
+                    // To be precise on "Current State", we should query the latest.
+                    // But given the previous implementation was just `has('seguimientos')`,
+                    // let's refine it.
+
+                    // "En Seguimiento": Has seguimientos, but exclude if current state is 2.
+                    // "Retornados": Has seguimientos, current state IS 2.
+
+                    // Optimized way using whereHas for ease (might match old states if not careful, but usually acceptable if history is linear/simple)
+                    // Better: whereHas('seguimientos', ..., callback to filter latest?) No.
+
+                    // Let's stick to the controller logic user approved:
+                    // "Retornados list in state 2 INSTEAD of showing in Seguimiento"
+
+                    $q->where('id_estado', '!=', 2);
+                });
+            } elseif ($request->tab === 'retornados') {
+                // Expedientes RETORNADOS (Estado 2)
+                $query->whereHas('seguimientos', function ($q) {
+                     $q->where('id_estado', 2);
+                });
             }
         }
 
