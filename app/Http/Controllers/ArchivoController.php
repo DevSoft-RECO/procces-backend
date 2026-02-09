@@ -40,4 +40,62 @@ class ArchivoController extends Controller
             'data' => $expedientes
         ]);
     }
+
+
+    /**
+     * Marcar Garantía Real como recibida.
+     * Solo si estado secundario es 4.
+     */
+    public function recibirGarantiaReal(Request $request, $id_expediente)
+    {
+        // Buscar el último seguimiento, o filtrar por el que tenga estado_secundario = 4?
+        // Asumiremos que trabajamos sobre el último seguimiento activo del expediente.
+        $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id_expediente)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$seguimiento) {
+            return response()->json(['success' => false, 'message' => 'No se encontró seguimiento para este expediente.'], 404);
+        }
+
+        // Validar lógica de negocio (opcional pero recomendada por seguridad)
+        /*
+        if ($seguimiento->id_estado_secundario != 4) {
+             return response()->json(['success' => false, 'message' => 'El expediente no está en estado de recepción de garantía.'], 400);
+        }
+        */
+
+        $seguimiento->update([
+            'recibi_garantia_real' => 'Si - ' . now()->format('d/m/Y H:i')
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Garantía Real marcada como recibida.']);
+    }
+
+    /**
+     * Marcar Contrato como recibido.
+     * Solo si estado es 4.
+     */
+    public function recibirContrato(Request $request, $id_expediente)
+    {
+        $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id_expediente)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$seguimiento) {
+            return response()->json(['success' => false, 'message' => 'No se encontró seguimiento para este expediente.'], 404);
+        }
+
+        /*
+        if ($seguimiento->id_estado != 4) {
+             return response()->json(['success' => false, 'message' => 'El expediente no está en estado de recepción de contrato.'], 400);
+        }
+        */
+
+        $seguimiento->update([
+            'recibi_contrato' => 'Si - ' . now()->format('d/m/Y H:i')
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Contrato marcado como recibido.']);
+    }
 }
