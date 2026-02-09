@@ -51,4 +51,12 @@ class SeguimientoExpediente extends Model
     {
         return $this->belongsTo(Bufete::class, 'bufete_id', 'id');
     }
+
+    /**
+     * Relación con TipoEstado (Secundario).
+     */
+    public function estadoSecundario()
+    {
+        return $this->belongsTo(TipoEstado::class, 'id_estado_secundario', 'id');
+    }
 }

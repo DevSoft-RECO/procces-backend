@@ -123,7 +123,7 @@ class SecretariaAgenciaController extends Controller
                     ->orWhere('id_estado', 6);
             });
         })
-        ->with(['fechas', 'seguimientos.estado'])
+        ->with(['fechas', 'seguimientos.estado', 'seguimientos.estadoSecundario'])
         ->orderBy('fecha_inicio', 'desc')
         ->paginate(15);
 
