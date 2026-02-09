@@ -235,10 +235,16 @@ class SecretariaCreditoController extends Controller
     {
         $query = NuevoExpediente::query();
 
-        // Filtrar por el Último estado = 10 (Devuelto por Abogado)
+        // Filtrar por el Último estado = 10 (Devuelto por Abogado) OR (Finalizado con es_un_pagare)
         $query->whereHas('seguimientos', function ($q) {
-            $q->where('id_estado', 10)
-              ->whereRaw('created_at = (
+            $q->where(function ($sub) {
+                $sub->where('id_estado', 10)
+                    ->orWhere(function ($sub2) {
+                        $sub2->whereIn('id_estado', [1, 4])
+                             ->whereNotNull('es_un_pagare');
+                    });
+            })
+            ->whereRaw('created_at = (
                   SELECT MAX(s2.created_at)
                   FROM seguimiento_expedientes as s2
                   WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
