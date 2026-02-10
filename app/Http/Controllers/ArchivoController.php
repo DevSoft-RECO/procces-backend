@@ -144,8 +144,8 @@ class ArchivoController extends Controller
                 'datos_garantia' => null,
                 'contrato' => $seguimiento->numero_contrato,
                 'inscripcion_otros_contratos' => null,
-                'ingreso' => now()->format('Y-m-d'),
-                // Fecha de acción archivar
+                'ingreso' => now()->format('Y-m-d'), // Fecha de acción archivar
+                'estado' => 'RECIBIDO', // Estado definido para históricos
                 // Otros campos requeridos por el modelo Expediente que no son nulleables?
                 // Revisando migración Expediente: la mayoría son nullable.
             ]);
