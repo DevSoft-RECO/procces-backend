@@ -60,10 +60,10 @@ class ExpedienteHistoricoController extends Controller
     public function searchByCodigo(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|string',
+            'contrato' => 'required|string',
         ]);
 
-        $expediente = Expediente::where('codigo_cliente', $request->codigo_cliente)->first();
+        $expediente = Expediente::where('contrato', $request->contrato)->first();
 
         if (!$expediente) {
             return response()->json([
