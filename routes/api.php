@@ -70,6 +70,7 @@ Route::put('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoControl
 
 // Nuevos Expedientes (Mis Expedientes)
 Route::get('/nuevos-expedientes', [App\Http\Controllers\NuevoExpedienteController::class, 'index']);
+Route::get('/nuevos-expedientes/finalizados', [App\Http\Controllers\NuevoExpedienteController::class, 'buzonFinalizados']); // New Route
 Route::post('/nuevos-expedientes/{id}/garantias', [App\Http\Controllers\NuevoExpedienteController::class, 'addGarantia']);
 Route::get('/nuevos-expedientes/{id}/garantias', [App\Http\Controllers\NuevoExpedienteController::class, 'getGarantias']);
 Route::post('/nuevos-expedientes/{id}/documentos', [App\Http\Controllers\NuevoExpedienteController::class, 'addDocumento']);

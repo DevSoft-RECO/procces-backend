@@ -421,4 +421,41 @@ class NuevoExpedienteController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Listado de expedientes FINALIZADOS (Estado 11).
+     * Para Asesores de Crédito.
+     */
+    public function buzonFinalizados(Request $request)
+    {
+        $query = NuevoExpediente::query();
+
+        // Filter by LATEST state = 11 (Finalizado / Pagare Recibido)
+        $query->whereHas('seguimientos', function ($q) {
+            $q->where('id_estado', 11)
+              ->whereRaw('created_at = (
+                  SELECT MAX(s2.created_at)
+                  FROM seguimiento_expedientes as s2
+                  WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
+              )');
+        });
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('cui', 'like', "%{$search}%");
+            });
+        }
+
+        $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
+            $query->orderBy('id_seguimiento', 'desc')->with('estado');
+        }])->orderBy('fecha_inicio', 'desc')->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
 }
