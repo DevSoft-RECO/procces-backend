@@ -66,6 +66,7 @@ Route::get('/import-nuevos/status/{id}', [App\Http\Controllers\ImportController:
 Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'index']);
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
 Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);
+Route::put('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoController::class, 'update']);
 
 // Nuevos Expedientes (Mis Expedientes)
 Route::get('/nuevos-expedientes', [App\Http\Controllers\NuevoExpedienteController::class, 'index']);
