@@ -79,4 +79,12 @@ class NuevoExpediente extends Model
         // 1:1 relationship
         return $this->hasOne(SeguimientoFecha::class, 'id_expediente', 'codigo_cliente');
     }
+
+    /**
+     * Get the agency associated with the expediente.
+     */
+    public function agencia()
+    {
+        return $this->belongsTo(Agencia::class, 'id_agencia', 'id');
+    }
 }
