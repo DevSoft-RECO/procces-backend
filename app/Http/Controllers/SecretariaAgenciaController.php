@@ -119,8 +119,7 @@ class SecretariaAgenciaController extends Controller
     {
         $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
             $query->where(function ($sub) {
-                $sub->where('archivo_administrativo', 'Si')
-                    ->orWhere('id_estado', 6);
+                $sub->where('archivo_administrativo', 'Si');
             });
         })
         ->with(['fechas', 'seguimientos.estado', 'seguimientos.estadoSecundario'])
@@ -135,24 +134,24 @@ class SecretariaAgenciaController extends Controller
     /**
      * Buzón de Pagarés (Estado 1 y es_un_pagare = 'si').
      */
-    public function buzonPagares(Request $request)
-    {
-        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
-            $query->where('id_estado', 1)
-                  ->where('es_un_pagare', 'si')
-                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
-        })
-        ->with(['fechas', 'seguimientos' => function ($query) {
-            $query->orderBy('created_at', 'desc')->with('estado');
-        }])
-        ->orderBy('fecha_inicio', 'desc')
-        ->paginate(15);
+    // public function buzonPagares(Request $request)
+    // {
+    //     $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+    //         $query->where('id_estado', 1)
+    //               ->where('es_un_pagare', 'si')
+    //               ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+    //     })
+    //     ->with(['fechas', 'seguimientos' => function ($query) {
+    //         $query->orderBy('created_at', 'desc')->with('estado');
+    //     }])
+    //     ->orderBy('fecha_inicio', 'desc')
+    //     ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $expedientes
-        ]);
-    }
+    //     return response()->json([
+    //         'success' => true,
+    //         'data' => $expedientes
+    //     ]);
+    // }
     /**
      * Marcar Pagaré como Recibido.
      */
@@ -178,7 +177,7 @@ class SecretariaAgenciaController extends Controller
 
             // Actualizar campo
             $seguimiento->recibi_pagare = 'si';
-            $seguimiento->id_estado = 6; // Cambiar a estado 6 (Archivado)
+            $seguimiento->id_estado = 11; // Cambiar a estado 6 (Archivado)
             $seguimiento->save();
 
             // Registrar fecha de almacenado administrativo
@@ -206,51 +205,51 @@ class SecretariaAgenciaController extends Controller
     /**
      * Archivar Pagaré (Estado 6).
      */
-    public function archivarPagare(Request $request)
-    {
-        $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
-        ]);
+    // public function archivarPagare(Request $request)
+    // {
+    //     $request->validate([
+    //         'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+    //     ]);
 
-        $codigo = $request->codigo_cliente;
+    //     $codigo = $request->codigo_cliente;
 
-        try {
-            DB::beginTransaction();
+    //     try {
+    //         DB::beginTransaction();
 
-            // Buscar el último seguimiento del expediente
-            $seguimiento = SeguimientoExpediente::where('id_expediente', $codigo)
-                ->orderBy('created_at', 'desc')
-                ->first();
+    //         // Buscar el último seguimiento del expediente
+    //         $seguimiento = SeguimientoExpediente::where('id_expediente', $codigo)
+    //             ->orderBy('created_at', 'desc')
+    //             ->first();
 
-            if (!$seguimiento) {
-                return response()->json(['success' => false, 'message' => 'Seguimiento no encontrado.'], 404);
-            }
+    //         if (!$seguimiento) {
+    //             return response()->json(['success' => false, 'message' => 'Seguimiento no encontrado.'], 404);
+    //         }
 
-            // Cambiar estado a 6 (Archivado) y marcar como administrativo
-            $seguimiento->id_estado = 6;
-            $seguimiento->archivo_administrativo = 'Si';
-            $seguimiento->save();
+    //         // Cambiar estado a 6 (Archivado) y marcar como administrativo
+    //         $seguimiento->id_estado = 6;
+    //         $seguimiento->archivo_administrativo = 'Si';
+    //         $seguimiento->save();
 
-            // Registrar fecha de almacenado administrativo
-            \App\Models\SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
-                ['f_almacenado_admin' => \Carbon\Carbon::now()]
-            );
+    //         // Registrar fecha de almacenado administrativo
+    //         \App\Models\SeguimientoFecha::updateOrCreate(
+    //             ['id_expediente' => $codigo],
+    //             ['f_almacenado_admin' => \Carbon\Carbon::now()]
+    //         );
 
-            DB::commit();
+    //         DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Expediente archivado correctamente.',
-                'data' => $seguimiento
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Expediente archivado correctamente.',
+    //             'data' => $seguimiento
+    //         ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al archivar pagaré: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Error al archivar pagaré: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 }
