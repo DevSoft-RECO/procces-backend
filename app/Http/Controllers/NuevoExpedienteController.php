@@ -152,6 +152,7 @@ class NuevoExpedienteController extends Controller
     {
         $expediente = NuevoExpediente::with([
             'garantias',
+            'fechas',
             'documentos.tipoDocumento',
             'documentos.registroPropiedad',
             'documentos' => function($query) {
