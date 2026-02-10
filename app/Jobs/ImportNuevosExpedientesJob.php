@@ -17,11 +17,13 @@ class ImportNuevosExpedientesJob implements ShouldQueue
 
     protected $filePath;
     protected $jobId;
+    protected $dates;
 
-    public function __construct($filePath, $jobId)
+    public function __construct($filePath, $jobId, $dates = [])
     {
         $this->filePath = $filePath;
         $this->jobId = $jobId;
+        $this->dates = $dates;
     }
 
     public function handle()
@@ -33,7 +35,7 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 throw new \Exception("El archivo no existe: {$this->filePath}");
             }
 
-            DB::table('nuevos_expedientes')->truncate();
+            // DB::table('nuevos_expedientes')->truncate(); // REMOVED
 
             Cache::put($cacheKey, [
                 'status' => 'processing',
@@ -46,11 +48,12 @@ class ImportNuevosExpedientesJob implements ShouldQueue
             $batchData = [];
             $totalProcessed = 0;
             $currentRow = 0;
+            $totalSkipped = 0;
 
             // Mapping Array
             $agencyMap = [
                 '2600 CENTRAL' => 99,
-                '2600' => 99, // Variant
+                '2600' => 99,
                 '2602 NUEVA CATARINA' => 2,
                 '2602' => 2,
                 '2603 SAN ANTONIO HUISTA' => 3,
@@ -80,8 +83,8 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 '2615 LA DEMOCRACIA' => 15,
                 '2615' => 15,
                 '2616' => 16,
-                '2616 TAJUMUCO' => 16, // Variant from provided list
-                '2616 AG TAJUMUCO' => 16, // Variant from sample
+                '2616 TAJUMUCO' => 16,
+                '2616 AG TAJUMUCO' => 16,
                 '2617 SANTA ANA HUISTA' => 17,
                 '2617' => 17,
                 '2618 TZISBAJ' => 18,
@@ -95,15 +98,31 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 if ($currentRow == 1 && stripos($row[0], 'EMPRESA') !== false) continue;
                 if (empty($row[1])) continue;
 
+                // Date Filter Logic
+                $desde = $this->dates['desde'] ?? null;
+                $hasta = $this->dates['hasta'] ?? ($desde ?: null);
+
+                if ($desde) {
+                    $rawDate = $row[7] ?? null; // FECHA INICIO shifted to index 7 (was 8)
+                    if ($rawDate) {
+                        try {
+                            $rowDate = \Carbon\Carbon::createFromFormat('d/m/Y', $rawDate)->format('Ymd');
+                            if ($rowDate < $desde || ($hasta && $rowDate > $hasta)) {
+                                $totalSkipped++;
+                                continue;
+                            }
+                        } catch (\Exception $e) {
+                            $totalSkipped++;
+                            continue;
+                        }
+                    }
+                }
+
                 try {
                     // Map Agency
                     $rawAgency = trim($row[0]);
-                    // Try exact match, then rough match
                     $agencyId = $agencyMap[$rawAgency] ?? null;
                     if (!$agencyId) {
-                        // Fallback: Try to match by "26XX" prefix logic if implied,
-                        // but sticking to provided list is safer.
-                        // Attempt partial match for "todos santos" double space issue
                          foreach ($agencyMap as $key => $val) {
                              if (str_contains($rawAgency, (string)$key)) {
                                  $agencyId = $val;
@@ -116,15 +135,14 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                         'id_agencia'       => $agencyId,
                         'codigo_cliente'   => (int) preg_replace('/\D/', '', $row[1]),
                         'numero_documento' => $row[2] ?? null,
-                        'tipo_documento'   => $row[3] ?? null,
-                        'usuario_asesor'   => $row[4] ?? null,
-                        'tasa_interes'     => $this->decVal($row, 5),
-                        'monto_documento'  => $this->decVal($row, 6),
-                        'tipo_garantia'    => $row[7] ?? null,
-                        'fecha_inicio'     => $this->dateVal($row, 8),
-                        'cui'              => $row[9] ?? null,
-                        // Skip 10 (Nombre1), 11 (Apellido1)
-                        'nombre_asociado'  => $row[12] ?? null, // NOMBRE CORTO
+                        // 'tipo_documento' removed (index 3 gone)
+                        'usuario_asesor'   => $row[3] ?? null, // Shifted from 4
+                        'tasa_interes'     => $this->decVal($row, 4), // Shifted from 5
+                        'monto_documento'  => $this->decVal($row, 5), // Shifted from 6
+                        'tipo_garantia'    => $row[6] ?? null, // Shifted from 7
+                        'fecha_inicio'     => $this->dateVal($row, 7), // Shifted from 8
+                        'cui'              => $row[8] ?? null, // Shifted from 9
+                        'nombre_asociado'  => $row[11] ?? null, // Shifted from 12? Assuming 10,11 skipped -> 9,10 skipped -> 11 used?
                         'created_at'       => now(),
                         'updated_at'       => now(),
                     ];
@@ -136,7 +154,11 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 }
 
                 if (count($batchData) >= $batchSize) {
-                    DB::table('nuevos_expedientes')->insert($batchData);
+                    DB::table('nuevos_expedientes')->upsert(
+                        $batchData,
+                        ['codigo_cliente'],
+                        ['id_agencia', 'numero_documento', 'usuario_asesor', 'tasa_interes', 'monto_documento', 'tipo_garantia', 'fecha_inicio', 'cui', 'nombre_asociado', 'updated_at']
+                    );
                     $totalProcessed += count($batchData);
                     $batchData = [];
                     $this->updateProgress($cacheKey, $totalProcessed);
@@ -144,7 +166,11 @@ class ImportNuevosExpedientesJob implements ShouldQueue
             }
 
             if (!empty($batchData)) {
-                DB::table('nuevos_expedientes')->insert($batchData);
+                DB::table('nuevos_expedientes')->upsert(
+                    $batchData,
+                    ['codigo_cliente'],
+                    ['id_agencia', 'numero_documento', 'usuario_asesor', 'tasa_interes', 'monto_documento', 'tipo_garantia', 'fecha_inicio', 'cui', 'nombre_asociado', 'updated_at']
+                );
                 $totalProcessed += count($batchData);
             }
 

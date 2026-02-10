@@ -20,7 +20,7 @@ return new class extends Migration
 
             // Other fields matches CSV structure
             $table->string('numero_documento', 50)->nullable();
-            $table->string('tipo_documento', 50)->nullable();
+            // $table->string('tipo_documento', 50)->nullable(); // REMOVED per user request
             $table->string('usuario_asesor', 50)->nullable();
             $table->decimal('tasa_interes', 8, 2)->nullable();
             $table->decimal('monto_documento', 18, 2)->nullable();

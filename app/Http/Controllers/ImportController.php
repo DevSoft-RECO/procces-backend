@@ -66,8 +66,11 @@ class ImportController extends Controller
      */
     public function uploadNuevos(Request $request)
     {
+        Log::info('DEBUG: ImportController@uploadNuevos HIT. Request: ' . json_encode($request->all()));
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
+            'desde' => 'nullable|string|size:8', // YYYYMMDD
+            'hasta' => 'nullable|string|size:8',
         ]);
 
         try {
@@ -77,9 +80,13 @@ class ImportController extends Controller
             $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
 
             $jobId = (string) Str::uuid();
+            $dates = [
+                'desde' => $request->desde,
+                'hasta' => $request->hasta,
+            ];
 
             // Dispatch Job
-            \App\Jobs\ImportNuevosExpedientesJob::dispatch($absolutePath, $jobId);
+            \App\Jobs\ImportNuevosExpedientesJob::dispatch($absolutePath, $jobId, $dates);
 
             // Initialize cache
             $cacheKey = "import_nuevos_job_{$jobId}";
