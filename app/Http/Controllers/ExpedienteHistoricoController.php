@@ -16,7 +16,7 @@ class ExpedienteHistoricoController extends Controller
     {
         // Removed validation restrictions as requested
         // Just return paginated data ordered by creation
-        $expedientes = Expediente::orderBy('created_at', 'desc')->paginate(10);
+        $expedientes = Expediente::orderBy('fecha_inicio', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,

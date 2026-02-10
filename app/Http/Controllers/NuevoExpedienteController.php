@@ -72,7 +72,7 @@ class NuevoExpedienteController extends Controller
 
         $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
             $query->orderBy('id_seguimiento', 'desc')->with('estado');
-        }])->orderBy('created_at', 'desc')->paginate(10);
+        }])->orderBy('fecha_inicio', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,
