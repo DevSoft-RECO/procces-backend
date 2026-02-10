@@ -197,10 +197,9 @@ class ImportExpedientesJob implements ShouldQueue
             $batchData,
             ['codigo_cliente'],
             [
-               'agencia', 'numero_documento', 'tipo_documento', 'usuario_asesor',
-               'tasa_interes', 'monto', 'tipo_garantia', 'fecha_inicio',
-               'cui', 'asociado', 'contrato', 'cta_bw', 'cif',
-               'datos_garantia', 'inscripcion_otros_contratos', 'ingreso', 'inventario',
+               'agencia', 'fecha_inicio', 'cta_bw', 'numero_documento', 'cif', 'asociado',
+               'monto', 'tipo_garantia', 'datos_garantia', 'contrato',
+               'inscripcion_otros_contratos', 'ingreso', 'inventario',
                'salida', 'observacion', 'estado', 'updated_at'
             ]
         );
@@ -231,31 +230,53 @@ class ImportExpedientesJob implements ShouldQueue
         // 19: OBSERVACIÓN
         // 20: ESTADO
 
-        return [
+                return [
             'agencia'              => $this->val($row, 0),
-            'codigo_cliente'       => $this->intVal($row, 1),
-            'numero_documento'     => $this->val($row, 2),
-            'tipo_documento'       => $this->val($row, 3),
-            'usuario_asesor'       => $this->val($row, 4),
-            'tasa_interes'         => $this->decVal($row, 5),
-            'monto'                => $this->currencyVal($row, 6),
-            'tipo_garantia'        => $this->val($row, 7),
-            'fecha_inicio'         => $this->dateVal($row, 8),
-            'cui'                  => $this->val($row, 9),
-            'asociado'             => $this->val($row, 10),
-            'contrato'             => $this->val($row, 11),
-            'cta_bw'               => $this->val($row, 12),
-            'cif'                  => $this->val($row, 13),
-            'datos_garantia'       => $this->val($row, 14),
-            'inscripcion_otros_contratos' => $this->val($row, 15),
-            'ingreso'              => $this->val($row, 16),
-            'inventario'           => $this->val($row, 17),
-            'salida'               => $this->val($row, 18),
-            'observacion'          => $this->val($row, 19),
-            'estado'               => $this->val($row, 20),
+            'fecha_inicio'         => $this->dateVal($row, 1),
+            'cta_bw'               => $this->val($row, 2),
+            'numero_documento'     => $this->val($row, 3),
+            'cif'                  => $this->val($row, 4),
+            'codigo_cliente'       => $this->intVal($row, 5),
+            'asociado'             => $this->val($row, 6),
+            'monto'                => $this->currencyVal($row, 7),
+            'tipo_garantia'        => $this->val($row, 8),
+            'datos_garantia'       => $this->val($row, 9),
+            'contrato'             => $this->val($row, 10),
+            'inscripcion_otros_contratos' => $this->val($row, 11),
+            'ingreso'              => $this->val($row, 12),
+            'inventario'           => $this->val($row, 13),
+            'salida'               => $this->val($row, 14),
+            'observacion'          => $this->val($row, 15),
+            'estado'               => $this->val($row, 16),
             'created_at'           => now(),
             'updated_at'           => now(),
         ];
+
+        // return [
+        //     'agencia'              => $this->val($row, 0),
+        //     'codigo_cliente'       => $this->intVal($row, 1),
+        //     'numero_documento'     => $this->val($row, 2),
+        //     'tipo_documento'       => $this->val($row, 3),
+        //     'usuario_asesor'       => $this->val($row, 4),
+        //     'tasa_interes'         => $this->decVal($row, 5),
+        //     'monto'                => $this->currencyVal($row, 6),
+        //     'tipo_garantia'        => $this->val($row, 7),
+        //     'fecha_inicio'         => $this->dateVal($row, 8),
+        //     'cui'                  => $this->val($row, 9),
+        //     'asociado'             => $this->val($row, 10),
+        //     'contrato'             => $this->val($row, 11),
+        //     'cta_bw'               => $this->val($row, 12),
+        //     'cif'                  => $this->val($row, 13),
+        //     'datos_garantia'       => $this->val($row, 14),
+        //     'inscripcion_otros_contratos' => $this->val($row, 15),
+        //     'ingreso'              => $this->val($row, 16),
+        //     'inventario'           => $this->val($row, 17),
+        //     'salida'               => $this->val($row, 18),
+        //     'observacion'          => $this->val($row, 19),
+        //     'estado'               => $this->val($row, 20),
+        //     'created_at'           => now(),
+        //     'updated_at'           => now(),
+        // ];
     }
 
     private function val($row, $index)
@@ -298,12 +319,24 @@ class ImportExpedientesJob implements ShouldQueue
             return null;
         }
     }
+
     private function currencyVal($row, $index)
     {
         $val = $this->val($row, $index);
         if ($val === null) return null;
-        // Remove 'Q', commas, and spaces
-        $clean = preg_replace('/[Q,\s]/', '', $val);
+
+        // Removemos la Q, la Â, comas y cualquier tipo de espacio
+        $clean = preg_replace('/[QÂ,\s]/u', '', $val);
+
         return is_numeric($clean) ? (float)$clean : null;
     }
+
+    // private function currencyVal($row, $index)
+    // {
+    //     $val = $this->val($row, $index);
+    //     if ($val === null) return null;
+    //     // Remove 'Q', commas, and spaces
+    //     $clean = preg_replace('/[Q,\s]/', '', $val);
+    //     return is_numeric($clean) ? (float)$clean : null;
+    // }
 }
