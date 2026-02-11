@@ -50,7 +50,8 @@ class NuevoExpedienteController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('codigo_cliente', 'like', "%{$search}%")
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhere('codigo_cliente', 'like', "%{$search}%")
                   ->orWhere('nombre_asociado', 'like', "%{$search}%")
                   ->orWhere('cui', 'like', "%{$search}%");
             });
@@ -58,7 +59,7 @@ class NuevoExpedienteController extends Controller
 
         $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
             $query->orderBy('id_seguimiento', 'desc')->with('estado');
-        }])->orderBy('fecha_inicio', 'desc')->paginate(10);
+        }])->orderBy('id', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,
