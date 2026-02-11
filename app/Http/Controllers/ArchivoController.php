@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\NuevoExpediente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ArchivoController extends Controller
 {
