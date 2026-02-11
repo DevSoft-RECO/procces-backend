@@ -35,7 +35,7 @@ class SeguimientoExpediente extends Model
      */
     public function nuevoExpediente()
     {
-        return $this->belongsTo(NuevoExpediente::class, 'id_expediente', 'codigo_cliente');
+        return $this->belongsTo(NuevoExpediente::class, 'id_expediente');
     }
 
     /**

@@ -12,8 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('nuevos_expedientes', function (Blueprint $table) {
-            // Primary Key from CSV (Codigo Cliente)
-            $table->unsignedBigInteger('codigo_cliente')->primary();
+            $table->id();
+
+            // Primary Key from CSV (Codigo Cliente) - Now just an index, allowing duplicates
+            $table->unsignedBigInteger('codigo_cliente')->nullable()->index();
 
             // Mapped ID (was EMPRESA text)
             $table->unsignedInteger('id_agencia')->nullable()->index();

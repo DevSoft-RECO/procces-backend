@@ -12,13 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('detalle_garantia', function (Blueprint $table) {
+            $table->charset = 'utf8';
+            $table->collation = 'utf8_general_ci';
             $table->id();
 
             // Foreign Keys
             // Link to 'nuevos_expedientes' via 'codigo_cliente'
             $table->unsignedBigInteger('nuevo_expediente_id')->index();
             $table->foreign('nuevo_expediente_id')
-                  ->references('codigo_cliente')
+                  ->references('id')
                   ->on('nuevos_expedientes')
                   ->onDelete('cascade');
 

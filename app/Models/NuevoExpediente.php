@@ -10,8 +10,8 @@ class NuevoExpediente extends Model
     use HasFactory;
 
     protected $table = 'nuevos_expedientes';
-    protected $primaryKey = 'codigo_cliente';
-    public $incrementing = false;
+    // protected $primaryKey = 'id'; // Default
+    // public $incrementing = true; // Default
 
     protected $fillable = [
         'codigo_cliente',
@@ -38,7 +38,7 @@ class NuevoExpediente extends Model
      */
     public function detalleGarantias()
     {
-        return $this->hasMany(DetalleGarantia::class, 'nuevo_expediente_id', 'codigo_cliente');
+        return $this->hasMany(DetalleGarantia::class, 'nuevo_expediente_id');
     }
 
     /**
@@ -68,7 +68,7 @@ class NuevoExpediente extends Model
      */
     public function seguimientos()
     {
-        return $this->hasMany(SeguimientoExpediente::class, 'id_expediente', 'codigo_cliente');
+        return $this->hasMany(SeguimientoExpediente::class, 'id_expediente');
     }
 
     /**
@@ -77,7 +77,7 @@ class NuevoExpediente extends Model
     public function fechas()
     {
         // 1:1 relationship
-        return $this->hasOne(SeguimientoFecha::class, 'id_expediente', 'codigo_cliente');
+        return $this->hasOne(SeguimientoFecha::class, 'id_expediente');
     }
 
     /**

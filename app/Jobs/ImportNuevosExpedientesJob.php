@@ -154,11 +154,7 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 }
 
                 if (count($batchData) >= $batchSize) {
-                    DB::table('nuevos_expedientes')->upsert(
-                        $batchData,
-                        ['codigo_cliente'],
-                        ['id_agencia', 'numero_documento', 'usuario_asesor', 'tasa_interes', 'monto_documento', 'tipo_garantia', 'fecha_inicio', 'cui', 'nombre_asociado', 'updated_at']
-                    );
+                    DB::table('nuevos_expedientes')->insert($batchData);
                     $totalProcessed += count($batchData);
                     $batchData = [];
                     $this->updateProgress($cacheKey, $totalProcessed);
@@ -166,11 +162,7 @@ class ImportNuevosExpedientesJob implements ShouldQueue
             }
 
             if (!empty($batchData)) {
-                DB::table('nuevos_expedientes')->upsert(
-                    $batchData,
-                    ['codigo_cliente'],
-                    ['id_agencia', 'numero_documento', 'usuario_asesor', 'tasa_interes', 'monto_documento', 'tipo_garantia', 'fecha_inicio', 'cui', 'nombre_asociado', 'updated_at']
-                );
+                DB::table('nuevos_expedientes')->insert($batchData);
                 $totalProcessed += count($batchData);
             }
 

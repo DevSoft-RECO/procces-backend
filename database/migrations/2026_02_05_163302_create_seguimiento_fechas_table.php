@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('seguimiento_fechas', function (Blueprint $table) {
             $table->unsignedBigInteger('id_expediente')->primary();
             $table->foreign('id_expediente')
-                  ->references('codigo_cliente')
+                  ->references('id')
                   ->on('nuevos_expedientes')
                   ->onDelete('cascade');
 

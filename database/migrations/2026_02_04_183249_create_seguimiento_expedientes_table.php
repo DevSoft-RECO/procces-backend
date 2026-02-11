@@ -16,7 +16,7 @@ return new class extends Migration
 
             $table->unsignedBigInteger('id_expediente')->index();
             $table->foreign('id_expediente')
-                  ->references('codigo_cliente')
+                  ->references('id')
                   ->on('nuevos_expedientes')
                   ->onDelete('cascade');
 
