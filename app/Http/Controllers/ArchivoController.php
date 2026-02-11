@@ -83,14 +83,13 @@ class ArchivoController extends Controller
             ->first();
 
         if (!$seguimiento) {
-            return response()->json(['success' => false, 'message' => 'No se encontró seguimiento para este expediente.'], 404);
+            return response()->json(['success' => false, 'message' => 'No se encontró seguimiento.'], 404);
         }
 
-        /*
-        if ($seguimiento->id_estado != 4) {
-             return response()->json(['success' => false, 'message' => 'El expediente no está en estado de recepción de contrato.'], 400);
+        // SEGURIDAD: Validar que realmente es un contrato antes de dejar marcar "recibido"
+        if ($seguimiento->es_un_pagare !== 'no') {
+            return response()->json(['success' => false, 'message' => 'Este expediente es un Pagaré, no requiere contrato.'], 400);
         }
-        */
 
         $seguimiento->update([
             'recibi_contrato' => 'Si - ' . now()->format('d/m/Y H:i')
