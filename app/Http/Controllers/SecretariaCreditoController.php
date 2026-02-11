@@ -297,9 +297,10 @@ class SecretariaCreditoController extends Controller
             $expedienteId = $request->id;
             $file = $request->file('file');
 
-            // 1. Guardar el archivo físico
-            // Sugerencia: Guardar en una carpeta específica, ej: 'expedientes/contratos_escaneados'
-            $path = $file->store('expedientes/contratos_escaneados', 'public');
+            // 1. Guardar el archivo físico directamente en public
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('expedientes/contratos_escaneados'), $filename);
+            $path = 'expedientes/contratos_escaneados/' . $filename;
 
             // 2. Buscar el último seguimiento (Debería ser el estado 10)
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
@@ -344,11 +345,18 @@ class SecretariaCreditoController extends Controller
                         ->orderBy('created_at', 'desc')
                         ->first();
 
-        if (!$seguimiento || !Storage::disk('public')->exists($seguimiento->path_contrato)) {
+        $path = public_path($seguimiento->path_contrato);
+
+        if (!$seguimiento || !file_exists($path)) {
             return response()->json(['message' => 'Contrato no encontrado.'], 404);
         }
 
-        return Storage::disk('public')->download($seguimiento->path_contrato);
+        // Return asset URL for frontend to open
+        $url = asset($seguimiento->path_contrato);
+        return response()->json([
+            'success' => true,
+            'url' => $url
+        ]);
     }
 
     /**
