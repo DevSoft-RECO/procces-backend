@@ -360,7 +360,7 @@ class SecretariaCreditoController extends Controller
     }
 
     /**
-     * Finalizar proceso de escaneo y determinar si es pagaré.
+     * Finalizar proceso de escaneo y determinar el camino del expediente.
      */
     public function finalizarProceso(Request $request)
     {
@@ -375,7 +375,6 @@ class SecretariaCreditoController extends Controller
             $id = $request->id;
             $esPagare = $request->es_pagare;
 
-            // 1. Obtener el último seguimiento (Estado 10)
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
                             ->orderBy('created_at', 'desc')
                             ->first();
@@ -384,38 +383,49 @@ class SecretariaCreditoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Expediente no encontrado.'], 404);
             }
 
-            // 2. Actualizar columna es_un_pagare y el estado
+            // 1. Guardamos la decisión
             $seguimiento->es_un_pagare = $esPagare;
-            // Determine new state
-            $nuevoEstado = ($esPagare === 'si') ? 1 : 4; // 5 = Protocolos, 4 = Archivo
-            $seguimiento->id_estado = $nuevoEstado;
-            $seguimiento->save();
 
-            // 3. (Se eliminó la creación de un nuevo seguimiento, se trabaja sobre el actual)
+            // 2. LÓGICA DE ESTADOS SIMPLIFICADA
 
-            // 4. If "No" (State 4), update f_enviado_archivos in seguimiento_fechas
-            if ($esPagare === 'no') {
-                $fechas = \App\Models\SeguimientoFecha::firstOrCreate(
-                    ['id_expediente' => $id]
-                );
+            // CASO: ES PAGARÉ
+            if ($esPagare === 'si') {
+                if ($seguimiento->enviado_a_archivos === 'No') {
+                    // CASO 4: Sin Garantía + Pagaré = MATAR PROCESO AQUÍ
+                    $seguimiento->id_estado = 11;
+                    $seguimiento->id_estado_secundario = 11;
+                } else {
+                    // CASO 3: Con Garantía + Pagaré = EL PROCESO SIGUE PARA ARCHIVO
+                    // (Solo el principal muere, el secundario queda en 4 para el buzón)
+                    $seguimiento->id_estado = 11;
+                    $seguimiento->id_estado_secundario = 4;
+                }
+            }
+            // CASO: ES CONTRATO (es_pagare === 'no')
+            else {
+                // Siempre va a Archivo (sea con o sin garantía real)
+                $seguimiento->id_estado = 11; // El asesor termina su parte
+                $seguimiento->id_estado_secundario = 4; // Se activa el buzón de archivo
+
+                // Registrar fecha de envío a archivo (solo para contratos)
+                $fechas = \App\Models\SeguimientoFecha::firstOrCreate(['id_expediente' => $id]);
                 $fechas->f_enviado_archivos = now();
                 $fechas->save();
             }
 
+            $seguimiento->save();
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Proceso finalizado correctamente.',
-                'nuevo_estado' => $nuevoEstado
+                'message' => 'Proceso determinado con éxito.',
+                'es_pagare' => $esPagare,
+                'estado_final' => $seguimiento->id_estado
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al finalizar proceso: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }
