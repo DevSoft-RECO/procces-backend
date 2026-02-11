@@ -177,7 +177,6 @@ class SecretariaAgenciaController extends Controller
 
             // Actualizar campo
             $seguimiento->recibi_pagare = 'si';
-            $seguimiento->id_estado = 11; // Cambiar a estado 6 (Archivado)
             $seguimiento->save();
 
             // Registrar fecha de almacenado administrativo
