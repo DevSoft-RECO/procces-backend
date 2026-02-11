@@ -15,18 +15,18 @@ class SecretariaAgenciaController extends Controller
     public function adjuntarContrato(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
             'numero_contrato' => 'required|string|max:255',
         ]);
 
-        $codigoCliente = $request->codigo_cliente;
+        $id = $request->id;
         $numeroContrato = $request->numero_contrato;
 
         try {
             DB::beginTransaction();
 
             // Buscar el último seguimiento del expediente
-            $ultimoSeguimiento = SeguimientoExpediente::where('id_expediente', $codigoCliente)
+            $ultimoSeguimiento = SeguimientoExpediente::where('id_expediente', $id)
                 ->orderBy('created_at', 'desc') // Asumiendo que created_at o id_seguimiento define el orden
                 ->first();
 
@@ -73,15 +73,15 @@ class SecretariaAgenciaController extends Controller
     public function archivarAdministrativamente(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
         ]);
 
-        $codigoCliente = $request->codigo_cliente;
+        $id = $request->id;
 
         try {
             DB::beginTransaction();
 
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigoCliente]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             // Validar que esté aceptado (>= 3)
             if ($seguimiento->id_estado < 3) {
@@ -158,16 +158,16 @@ class SecretariaAgenciaController extends Controller
     public function recibirPagare(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+            'id' => 'required|exists:nuevos_expedientes,id'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->id;
 
         try {
             DB::beginTransaction();
 
             // Buscar el último seguimiento del expediente
-            $seguimiento = SeguimientoExpediente::where('id_expediente', $codigo)
+            $seguimiento = SeguimientoExpediente::where('id_expediente', $id)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
@@ -182,7 +182,7 @@ class SecretariaAgenciaController extends Controller
 
             // Registrar fecha de almacenado administrativo
             \App\Models\SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
+                ['id_expediente' => $id],
                 ['f_almacenado_admin' => \Carbon\Carbon::now()]
             );
 

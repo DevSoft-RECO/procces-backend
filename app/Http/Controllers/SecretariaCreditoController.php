@@ -62,13 +62,13 @@ class SecretariaCreditoController extends Controller
     public function aceptar(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $expedienteId = $request->codigo_cliente;
+            $expedienteId = $request->id;
 
             // 1. Buscar el último seguimiento existente
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
@@ -161,14 +161,14 @@ class SecretariaCreditoController extends Controller
     public function enviarAbogado(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
             'bufete_id' => 'required|exists:bufetes,id',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $expedienteId = $request->codigo_cliente;
+            $expedienteId = $request->id;
 
             // 1. Buscar el último seguimiento existente
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
@@ -216,7 +216,7 @@ class SecretariaCreditoController extends Controller
     {
         $expedientes = \App\Models\NuevoExpediente::whereHas('seguimientos', function ($query) {
             $query->whereIn('id_estado', [8, 9, 10])
-                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
         ->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
@@ -287,14 +287,14 @@ class SecretariaCreditoController extends Controller
     public function guardarEscaneado(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
             'file' => 'required|file|mimes:pdf|max:10240', // Max 10MB
         ]);
 
         try {
             DB::beginTransaction();
 
-            $expedienteId = $request->codigo_cliente;
+            $expedienteId = $request->id;
             $file = $request->file('file');
 
             // 1. Guardar el archivo físico
@@ -336,10 +336,10 @@ class SecretariaCreditoController extends Controller
     /**
      * Ver/Descargar el contrato escaneado.
      */
-    public function verContrato($codigoCliente)
+    public function verContrato($id)
     {
         // 1. Buscar el último seguimiento con contrato
-        $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+        $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
                         ->whereNotNull('path_contrato')
                         ->orderBy('created_at', 'desc')
                         ->first();
@@ -357,18 +357,18 @@ class SecretariaCreditoController extends Controller
     public function finalizarProceso(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
             'es_pagare' => 'required|in:si,no'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $codigoCliente = $request->codigo_cliente;
+            $id = $request->id;
             $esPagare = $request->es_pagare;
 
             // 1. Obtener el último seguimiento (Estado 10)
-            $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+            $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
                             ->orderBy('created_at', 'desc')
                             ->first();
 
@@ -388,7 +388,7 @@ class SecretariaCreditoController extends Controller
             // 4. If "No" (State 4), update f_enviado_archivos in seguimiento_fechas
             if ($esPagare === 'no') {
                 $fechas = \App\Models\SeguimientoFecha::firstOrCreate(
-                    ['id_expediente' => $codigoCliente]
+                    ['id_expediente' => $id]
                 );
                 $fechas->f_enviado_archivos = now();
                 $fechas->save();

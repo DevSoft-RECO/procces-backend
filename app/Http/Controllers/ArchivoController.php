@@ -27,7 +27,7 @@ class ArchivoController extends Controller
             // No, porque 'seguimientos' filtra sobre la relación.
             // Pero un expediente tiene MUCHOS seguimientos.
             // Debemos filtrar sobre el *último* seguimiento.
-            ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+            ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
         ->with(['fechas', 'seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with('estado');

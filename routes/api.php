@@ -104,7 +104,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     Route::get('/secretaria-credito/escanear-documentos', [App\Http\Controllers\SecretariaCreditoController::class, 'escanearDocumentos']);
     Route::post('/secretaria-credito/guardar-escaneado', [App\Http\Controllers\SecretariaCreditoController::class, 'guardarEscaneado']);
-    Route::get('/secretaria-credito/ver-contrato/{codigoCliente}', [App\Http\Controllers\SecretariaCreditoController::class, 'verContrato']);
+    Route::get('/secretaria-credito/ver-contrato/{id}', [App\Http\Controllers\SecretariaCreditoController::class, 'verContrato']);
     Route::post('/secretaria-credito/finalizar-proceso', [App\Http\Controllers\SecretariaCreditoController::class, 'finalizarProceso']);
 
     // Secretaria Agencia

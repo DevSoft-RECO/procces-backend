@@ -15,7 +15,7 @@ class AbogadoController extends Controller
         // Fetch expedientes where the *latest* tracking status is 8 or 9
         $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
             $query->whereIn('id_estado', [8, 9])
-                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
         ->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
@@ -35,14 +35,14 @@ class AbogadoController extends Controller
     public function recibir(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
         ]);
 
-        $codigoCliente = $request->codigo_cliente;
+        $id = $request->id;
 
         // 1. Update Tracking State (seguimiento_expedientes)
         // Find the latest tracking record (which should be state 8)
-        $ultimoSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+        $ultimoSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
             ->orderBy('created_at', 'desc')
             ->first();
 
@@ -54,7 +54,7 @@ class AbogadoController extends Controller
         // 2. Update Dates (seguimiento_fechas)
         // Find or create the dates record
         $fechas = \App\Models\SeguimientoFecha::firstOrCreate(
-            ['id_expediente' => $codigoCliente]
+            ['id_expediente' => $id]
         );
 
         // Update the accepted date if not already set
@@ -76,13 +76,13 @@ class AbogadoController extends Controller
     public function enviarSecretaria(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'id' => 'required|exists:nuevos_expedientes,id',
         ]);
 
-        $codigoCliente = $request->codigo_cliente;
+        $id = $request->id;
 
         // 1. Update Tracking State (seguimiento_expedientes)
-        $ultimoSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $codigoCliente)
+        $ultimoSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
             ->orderBy('created_at', 'desc')
             ->first();
 
@@ -93,7 +93,7 @@ class AbogadoController extends Controller
 
         // 2. Update Dates (seguimiento_fechas)
         $fechas = \App\Models\SeguimientoFecha::firstOrCreate(
-            ['id_expediente' => $codigoCliente]
+            ['id_expediente' => $id]
         );
 
         if (!$fechas->f_enviado_secretaria_credito) {
@@ -114,7 +114,7 @@ class AbogadoController extends Controller
     {
         $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
             $query->where('id_estado', 10)
-                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.codigo_cliente)');
+                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
         ->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
