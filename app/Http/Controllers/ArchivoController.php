@@ -97,9 +97,11 @@ class ArchivoController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Contrato marcado como recibido.']);
     }
+
     /**
      * Archivar expediente.
-     * Crea un registro en la tabla expedientes con la información del seguimiento.
+     * Crea un registro en la tabla expedientes con la información del seguimiento
+     * y finaliza el flujo secundario.
      */
     public function archivar(Request $request, $id_expediente)
     {
@@ -117,46 +119,47 @@ class ArchivoController extends Controller
         }
 
         try {
-            // Mapeo de datos según requerimiento
-            // codigo_cliente = seguimiento_expedientes->id_expedeinte->codigo_cliente (Ya lo tenemos en $id_expediente)
-            // agencia = seguimiento_expedientes->id_expedeinte->id_agencia -> nombre (Asumiendo relación agencia en NuevoExpediente)
-            // ... resto de campos
+            DB::beginTransaction(); // Añadimos transacción para asegurar consistencia
 
             $nuevoExpediente = $seguimiento->nuevoExpediente;
             if (!$nuevoExpediente) {
                  return response()->json(['success' => false, 'message' => 'No se encontró el expediente origen.'], 404);
             }
 
-            // Obtener nombre de agencia
             $nombreAgencia = $nuevoExpediente->agencia ? $nuevoExpediente->agencia->nombre : 'N/A';
 
+            // 1. Crear el registro histórico en la tabla de custodia final
             \App\Models\Expediente::create([
-                'codigo_cliente' => $nuevoExpediente->codigo_cliente,
-                'agencia' => $nombreAgencia, // Guardamos el nombre
-                'fecha_inicio' => $nuevoExpediente->fecha_inicio,
-                'cta_bw' => null,
-                'numero_documento' => $nuevoExpediente->numero_documento,
-                'cif' => null,
-                'asociado' => $nuevoExpediente->nombre_asociado,
-                'monto' => $nuevoExpediente->monto_documento,
-                'tipo_garantia' => $nuevoExpediente->tipo_garantia,
-                'datos_garantia' => null,
-                'contrato' => $seguimiento->numero_contrato,
+                'codigo_cliente'    => $nuevoExpediente->codigo_cliente,
+                'agencia'           => $nombreAgencia,
+                'fecha_inicio'      => $nuevoExpediente->fecha_inicio,
+                'cta_bw'            => null,
+                'numero_documento'  => $nuevoExpediente->numero_documento,
+                'cif'               => null,
+                'asociado'          => $nuevoExpediente->nombre_asociado,
+                'monto'             => $nuevoExpediente->monto_documento,
+                'tipo_garantia'     => $nuevoExpediente->tipo_garantia,
+                'datos_garantia'    => null,
+                'contrato'          => $seguimiento->numero_contrato,
                 'inscripcion_otros_contratos' => null,
-                'ingreso' => now()->format('Y-m-d'), // Fecha de acción archivar
-                'estado' => 'RECIBIDO', // Estado definido para históricos
-                // Otros campos requeridos por el modelo Expediente que no son nulleables?
-                // Revisando migración Expediente: la mayoría son nullable.
+                'ingreso'           => now()->format('Y-m-d'),
+                'estado'            => 'RECIBIDO',
             ]);
 
-            // Actualizar seguimiento
+            // 2. ACTUALIZACIÓN CLAVE: Matar el proceso secundario
+            // Al poner id_estado_secundario en 11, desaparece del buzón de Archivo.
             $seguimiento->update([
-                'archivado_at' => now()
+                'archivado_at'         => now(),
+                'id_estado_secundario' => 11
+                // 'archivo_administrativo' => 'Custodiado en Archivo'
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Expediente archivado correctamente.']);
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Expediente archivado y proceso finalizado en Archivo.']);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             \Illuminate\Support\Facades\Log::error("Error archivando expediente $id_expediente: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error al archivar el expediente: ' . $e->getMessage()], 500);
         }
