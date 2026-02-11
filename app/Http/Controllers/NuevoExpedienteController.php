@@ -70,7 +70,7 @@ class NuevoExpedienteController extends Controller
     /**
      * Asociar una garantía a un expediente nuevo.
      */
-    public function addGarantia(Request $request, $codigoCliente)
+    public function addGarantia(Request $request, $id)
     {
         $request->validate([
             'garantia_id' => 'required|exists:garantias,id',
@@ -84,7 +84,7 @@ class NuevoExpedienteController extends Controller
             'observacion4' => 'nullable|string|max:200',
         ]);
 
-        $expediente = NuevoExpediente::findOrFail($codigoCliente);
+        $expediente = NuevoExpediente::findOrFail($id);
 
         try {
             DB::beginTransaction();
@@ -122,9 +122,9 @@ class NuevoExpedienteController extends Controller
     /**
      * Obtener las garantías de un expediente.
      */
-     public function getGarantias($codigoCliente)
+     public function getGarantias($id)
      {
-         $expediente = NuevoExpediente::with('garantias')->findOrFail($codigoCliente);
+         $expediente = NuevoExpediente::with('garantias')->findOrFail($id);
 
          return response()->json([
              'success' => true,
@@ -135,7 +135,7 @@ class NuevoExpedienteController extends Controller
     /**
      * Obtener detalles completos (Garantías y Documentos).
      */
-    public function getDetalles($codigoCliente)
+    public function getDetalles($id)
     {
         $expediente = NuevoExpediente::with([
             'garantias',
@@ -150,7 +150,7 @@ class NuevoExpedienteController extends Controller
                 $query->orderBy('id_seguimiento', 'desc');
             }
         ])
-        ->findOrFail($codigoCliente);
+        ->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -183,7 +183,7 @@ class NuevoExpedienteController extends Controller
                 $alreadyLinked = false;
                 if ($request->has('nuevo_expediente_id')) {
                     $alreadyLinked = $doc->nuevosExpedientes()
-                                       ->where('nuevos_expedientes.codigo_cliente', $request->nuevo_expediente_id)
+                                       ->where('nuevos_expedientes.id', $request->nuevo_expediente_id)
                                        ->exists();
                 }
                 $doc->already_linked = $alreadyLinked;
@@ -208,9 +208,9 @@ class NuevoExpedienteController extends Controller
      * Crear y asociar un documento a un expediente nuevo.
      * Si se envía 'documento_id', solo asocia.
      */
-    public function addDocumento(Request $request, $codigoCliente)
+    public function addDocumento(Request $request, $id)
     {
-        $expediente = NuevoExpediente::findOrFail($codigoCliente);
+        $expediente = NuevoExpediente::findOrFail($id);
 
         try {
             DB::beginTransaction();
@@ -254,9 +254,9 @@ class NuevoExpedienteController extends Controller
     /**
      * Desvincular un documento de un expediente.
      */
-    public function detachDocumento($codigoCliente, $documentoId)
+    public function detachDocumento($id, $documentoId)
     {
-        $expediente = NuevoExpediente::findOrFail($codigoCliente);
+        $expediente = NuevoExpediente::findOrFail($id);
 
         try {
             $expediente->documentos()->detach($documentoId);

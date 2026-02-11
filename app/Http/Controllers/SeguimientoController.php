@@ -17,17 +17,16 @@ class SeguimientoController extends Controller
     public function enviarASecretaria(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+            'expediente_id' => 'required|exists:nuevos_expedientes,id'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->expediente_id;
 
         try {
             DB::beginTransaction();
 
             // 1. Actualizar o Crear registro en seguimiento_expedientes
-            // 1. Actualizar o Crear registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             // Update only state-related fields without wiping others
             $seguimiento->id_estado = 1; // 1: Enviado a Secretaria
@@ -42,7 +41,7 @@ class SeguimientoController extends Controller
             // 2. Actualizar o Crear cronología en seguimiento_fechas
             // Use updateOrCreate since it's 1:1
             SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
+                ['id_expediente' => $id],
                 ['f_enviado_secretaria' => Carbon::now()]
             );
 
@@ -118,19 +117,18 @@ class SeguimientoController extends Controller
     public function rechazarExpediente(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'expediente_id' => 'required|exists:nuevos_expedientes,id',
             'observacion' => 'required|string|max:1000'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->expediente_id;
         $observacion = $request->observacion;
 
         try {
             DB::beginTransaction();
 
             // 1. Actualizar registro en seguimiento_expedientes
-            // 1. Actualizar registro en seguimiento_expedientes
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             $seguimiento->id_estado = 2; // 2: Rechazado / Regresado a Asesores
             $seguimiento->enviado_a_archivos = 'No';
@@ -142,7 +140,7 @@ class SeguimientoController extends Controller
 
             // 2. Actualizar fecha de retorno en seguimiento_fechas
             SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
+                ['id_expediente' => $id],
                 ['f_retorno_asesores' => Carbon::now()]
             );
 
@@ -171,15 +169,15 @@ class SeguimientoController extends Controller
     public function aceptarExpediente(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+            'expediente_id' => 'required|exists:nuevos_expedientes,id'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->expediente_id;
 
         try {
             DB::beginTransaction();
 
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             $seguimiento->id_estado = 3; // 3: Aceptado / En Revisión Final (Previo a Archivo)
             // No tocamos enviado_a_archivos aquí, eso es en el siguiente paso.
@@ -187,7 +185,7 @@ class SeguimientoController extends Controller
 
             // Actualizar fecha de aceptación
             SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
+                ['id_expediente' => $id],
                 ['f_aceptado_secretaria' => Carbon::now()]
             );
 
@@ -213,12 +211,12 @@ class SeguimientoController extends Controller
     public function enviarArchivo(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente',
+            'expediente_id' => 'required|exists:nuevos_expedientes,id',
             'tiene_garantia_real' => 'required|boolean', // Enviado desde frontend checkbox/option
             'observacion' => 'required|string|max:1000'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->expediente_id;
         // La lógica de "envio a archivos" traducida:
         // Check "Tiene Garantía Real" (Si/No) -> mapped to enviado_a_archivos ('Si'/'No')
         // Si CHECKED (Si): Guardar 'Si', Observación, y estado secundario = 4.
@@ -229,7 +227,7 @@ class SeguimientoController extends Controller
         try {
             DB::beginTransaction();
 
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             $seguimiento->enviado_a_archivos = $enviadoAArchivos;
             $seguimiento->observacion_envio = $request->observacion;
@@ -250,7 +248,7 @@ class SeguimientoController extends Controller
             // Actualizar fecha de envío a archivo (solo si se marca garantía real/envío físico)
              if ($request->tiene_garantia_real) {
                 SeguimientoFecha::updateOrCreate(
-                    ['id_expediente' => $codigo],
+                    ['id_expediente' => $id],
                     ['f_enviado_archivos' => Carbon::now()]
                 );
              }
@@ -278,15 +276,15 @@ class SeguimientoController extends Controller
     public function enviarProtocolo(Request $request)
     {
         $request->validate([
-            'codigo_cliente' => 'required|exists:nuevos_expedientes,codigo_cliente'
+            'expediente_id' => 'required|exists:nuevos_expedientes,id'
         ]);
 
-        $codigo = $request->codigo_cliente;
+        $id = $request->expediente_id;
 
         try {
             DB::beginTransaction();
 
-            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $codigo]);
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
 
             $seguimiento->id_estado = 5; // 5: Enviar a Protocolo
             // Mantenemos otros campos igual
@@ -294,7 +292,7 @@ class SeguimientoController extends Controller
 
             // Actualizar fecha protocolo
              SeguimientoFecha::updateOrCreate(
-                ['id_expediente' => $codigo],
+                ['id_expediente' => $id],
                 ['f_enviado_protocolos' => Carbon::now()]
             );
 

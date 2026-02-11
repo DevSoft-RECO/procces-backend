@@ -11,10 +11,10 @@ class TrackingController extends Controller
     /**
      * Obtener el historial de seguimiento de un expediente.
      */
-    public function getHistory($codigoCliente)
+    public function getHistory($id)
     {
         // Verificar existencia del expediente
-        $expediente = NuevoExpediente::find($codigoCliente);
+        $expediente = NuevoExpediente::find($id);
 
         if (!$expediente) {
             return response()->json([
@@ -25,7 +25,7 @@ class TrackingController extends Controller
 
         // Obtener seguimientos con estados y usuarios
         // Asumiendo que 'usuario' es un campo string en seguimiento, si es relación agregarla aquí
-        $seguimientos = SeguimientoExpediente::where('id_expediente', $codigoCliente)
+        $seguimientos = SeguimientoExpediente::where('id_expediente', $id)
             ->with(['estado', 'estadoSecundario'])
             ->orderBy('created_at', 'desc')
             ->get();
