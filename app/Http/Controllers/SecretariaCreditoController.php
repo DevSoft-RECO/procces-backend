@@ -222,6 +222,9 @@ class SecretariaCreditoController extends Controller
             $query->whereIn('id_estado', [8, 9, 10])
                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
+        ->whereHas('fechas', function ($query) {
+            $query->whereNull('f_enviado_secretaria_credito');
+        })
         ->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
         }, 'fechas'])
