@@ -120,6 +120,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/archivo/recibir-garantia/{id}', [App\Http\Controllers\ArchivoController::class, 'recibirGarantiaReal']);
     Route::post('/archivo/recibir-contrato/{id}', [App\Http\Controllers\ArchivoController::class, 'recibirContrato']);
     Route::post('/archivo/archivar/{id}', [App\Http\Controllers\ArchivoController::class, 'archivar']);
+    Route::get('/archivo/sistema', [App\Http\Controllers\ArchivoController::class, 'archivoSistema']);
 
     // Tracking (Historial Centralizado)
     Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);

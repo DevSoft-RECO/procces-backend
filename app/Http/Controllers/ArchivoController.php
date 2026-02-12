@@ -13,34 +13,54 @@ class ArchivoController extends Controller
      * Lista expedientes donde el estado actual es 4 (Archivo)
      * O el estado secundario es 4 (Archivo Preliminar/Paralelo).
      */
-    public function buzonRecibidos(Request $request)
-    {
-        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+ public function buzonRecibidos(Request $request)
+{
+    $expedientes = NuevoExpediente::select([
+            'id',
+            'codigo_cliente',
+            'nombre_asociado',
+            'tasa_interes',
+            'monto_documento'
+        ])
+        ->whereHas('seguimientos', function ($query) {
+            // 1. Condición de permanencia: Debe tener al menos uno en 4
             $query->where(function ($sub) {
                 $sub->where('id_estado', 4)
                     ->orWhere('id_estado_secundario', 4);
             })
-            // Asegurarnos de que estamos viendo el ÚLTIMO estado, o al menos que el expediente TIENE ese estado activo.
-            // La lógica previa usaba whereRaw para el último created_at.
-            // Si estado secundario es 4, puede que el estado principal sea 3.
-            // Queremos listar todo lo que "esté en archivo".
-            // Si usas whereHas simple, te traerá cualquiera que ALGUNA VEZ tuvo estado 4?
-            // No, porque 'seguimientos' filtra sobre la relación.
-            // Pero un expediente tiene MUCHOS seguimientos.
-            // Debemos filtrar sobre el *último* seguimiento.
+            // 2. CORRECCIÓN: Solo excluir si el SECUNDARIO ya llegó a 11
+            // No importa si el principal ya es 11, mientras el secundario sea 4, debe seguir aquí.
+            ->where('id_estado_secundario', '!=', 11)
+
             ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
-        ->with(['fechas', 'seguimientos' => function ($query) {
-            $query->orderBy('created_at', 'desc')->with('estado');
-        }])
-        ->orderBy('fecha_inicio', 'desc')
+        ->with([
+            'fechas:id_expediente,f_enviado_archivos',
+            'seguimientos' => function ($query) {
+                $query->select([
+                    'id_seguimiento',
+                    'id_expediente',
+                    'observacion_envio',
+                    'enviado_a_archivos',
+                    'es_un_pagare',
+                    'recibi_garantia_real',
+                    'recibi_contrato',
+                    'archivado_at',
+                    'id_estado',
+                    'id_estado_secundario'
+                ])
+                ->orderBy('created_at', 'desc')
+                ->limit(1);
+            }
+        ])
+        ->orderBy('id', 'desc')
         ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $expedientes
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'data' => $expedientes
+    ]);
+}
 
 
     /**
@@ -165,4 +185,92 @@ class ArchivoController extends Controller
             return response()->json(['success' => false, 'message' => 'Error al archivar el expediente: ' . $e->getMessage()], 500);
         }
     }
+
+
+
+    /**
+     * Listado general de expedientes finalizados (Sistema de Archivo).
+     * Solo trae campos básicos para la tabla principal.
+     */
+
+    /**
+     * Listado optimizado para el Sistema de Archivo (Expedientes en Estado 11).
+     * Trae solo los campos necesarios de la tabla principal y el último seguimiento.
+     */
+    public function archivoSistema(Request $request)
+    {
+        $expedientes = NuevoExpediente::select([
+                'id',
+                'codigo_cliente',
+                'id_agencia',
+                'numero_documento',
+                'usuario_asesor',
+                'tasa_interes',
+                'monto_documento',
+                'tipo_garantia',
+                'fecha_inicio',
+                'cui',
+                'nombre_asociado'
+            ])
+            ->whereHas('seguimientos', function ($query) {
+                // Solo aquellos donde ambos flujos finalizaron (Estado 11)
+                $query->where('id_estado', 11)
+                      ->where('id_estado_secundario', 11)
+                      ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+            })
+            ->with([
+                'seguimientos' => function ($query) {
+                    // Seleccionamos solo los campos de control de recepción y archivos
+                    $query->select([
+                        'id_seguimiento',
+                        'id_expediente',
+                        'recibi_pagare',
+                        'recibi_contrato',
+                        'recibi_garantia_real',
+                        'archivado_at',
+                        'archivo_administrativo',
+                        'path_contrato',
+                        'bufete_id'
+                    ])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(1);
+                },
+                'agencia:id,nombre' // Para mostrar el nombre de la agencia en la tabla
+            ])
+            ->orderBy('id', 'desc')
+            ->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
+    // public function archivoSistema(Request $request)
+    // {
+    //     $expedientes = NuevoExpediente::select([
+    //             'id',
+    //             'codigo_cliente',
+    //             'nombre_asociado',
+    //             'monto_documento'
+    //         ])
+    //         ->whereHas('seguimientos', function ($query) {
+    //             $query->where('id_estado', 11)
+    //                   ->where('id_estado_secundario', 11)
+    //                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+    //         })
+    //         ->with([
+    //             'seguimientos' => function ($query) {
+    //                 $query->select(['id_expediente', 'archivado_at', 'recibi_pagare', 'recibi_contrato'])
+    //                       ->orderBy('created_at', 'desc')
+    //                       ->limit(1);
+    //             }
+    //         ])
+    //         ->orderBy('id', 'desc')
+    //         ->paginate(20);
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'data' => $expedientes
+    //     ]);
+    // }
 }

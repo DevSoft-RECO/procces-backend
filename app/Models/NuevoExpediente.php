@@ -17,7 +17,6 @@ class NuevoExpediente extends Model
         'codigo_cliente',
         'id_agencia',
         'numero_documento',
-        'tipo_documento',
         'usuario_asesor',
         'tasa_interes',
         'monto_documento',
