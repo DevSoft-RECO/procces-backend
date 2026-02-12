@@ -45,8 +45,12 @@ public function searchEdit(Request $request)
             ],
             'garantias' => $expediente->garantias,
             'documentos' => $expediente->documentos->map(function($doc) {
-                // Calculamos el conteo para la validación de "Compartido"
-                $doc->nuevos_expedientes_count = $doc->nuevosExpedientes()->count();
+                $count = $doc->nuevosExpedientes()->count();
+
+                // Si el conteo es mayor a 1, restamos el actual para mostrar "otros X"
+                // Si es 1 o menos, el contador será 0 o 1 según prefieras
+                $doc->expedientes_asociados_count = ($count > 1) ? $count - 1 : 0;
+
                 return $doc;
             })
         ]
