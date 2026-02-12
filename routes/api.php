@@ -73,6 +73,7 @@ Route::put('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoControl
 
 
 Route::get('expedientes/search-edit', [BuscarEditarController::class, 'searchEdit']);
+Route::get('expedientes/documentos/{id}/asociados', [BuscarEditarController::class, 'getExpedientesAsociados']);
 
 // Nuevos Expedientes (Mis Expedientes)
 Route::get('/nuevos-expedientes', [App\Http\Controllers\NuevoExpedienteController::class, 'index']);

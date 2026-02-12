@@ -50,5 +50,24 @@ public function searchEdit(Request $request)
             })
         ]
     ]);
+    /**
+     * Retorna la lista de expedientes asociados a un documento específico.
+     * Carga diferida para no bloquear la búsqueda principal.
+     */
+
 }
+
+    public function getExpedientesAsociados($id)
+    {
+        $documento = \App\Models\Documento::with('nuevosExpedientes:id,numero_documento')->find($id);
+
+        if (!$documento) {
+            return response()->json(['success' => false, 'message' => 'Documento no encontrado'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $documento->nuevosExpedientes->pluck('numero_documento')
+        ]);
+    }
 }
