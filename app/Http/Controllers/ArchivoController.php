@@ -251,21 +251,19 @@ public function show($id_seguimiento)
             'numero_contrato'
         ])
         ->with([
-            // 1. Cargamos el expediente con ID (para relación) y nombre_asociado (para vista)
             'nuevoExpediente' => function ($query) {
                 $query->select(['id', 'nombre_asociado']);
             },
 
-            // 2. Detalle de Garantías
+            // CARGA ANIDADA: Detalle -> Garantía (Nombre)
             'nuevoExpediente.detalleGarantias' => function ($query) {
                 $query->select([
                     'id', 'nuevo_expediente_id', 'garantia_id',
                     'codeudor1', 'codeudor2', 'codeudor3', 'codeudor4',
                     'observacion1', 'observacion2', 'observacion3', 'observacion4'
-                ]);
+                ])->with(['garantia:id,nombre']); // <--- Agregamos esto
             },
 
-            // 3. Documentos: Seleccionando campos técnicos
             'nuevoExpediente.documentos' => function ($query) {
                 $query->select([
                     'documentos.id', 'numero', 'fecha', 'propietario',
@@ -273,8 +271,6 @@ public function show($id_seguimiento)
                     'no_dominio', 'referencia', 'monto_poliza', 'observacion'
                 ]);
             },
-
-            // 4. Bufete y Usuario (Abogado)
             'bufete' => function ($query) {
                 $query->select(['id', 'user_id']);
             },
@@ -285,21 +281,14 @@ public function show($id_seguimiento)
         ->find($id_seguimiento);
 
     if (!$detalle) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Detalle técnico no encontrado.'
-        ], 404);
+        return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
     }
 
-    // Limpieza de pivot en la colección de documentos
     if ($detalle->nuevoExpediente && $detalle->nuevoExpediente->documentos) {
         $detalle->nuevoExpediente->documentos->makeHidden('pivot');
     }
 
-    return response()->json([
-        'success' => true,
-        'data' => $detalle
-    ]);
+    return response()->json(['success' => true, 'data' => $detalle]);
 }
 
 }
