@@ -17,41 +17,45 @@ class SecretariaCreditoController extends Controller
         // Query base
         $query = NuevoExpediente::query();
 
-        // Filtrar por el Último estado = 5
-        // Usamos whereHas con una subquery para asegurar que sea el ULTIMO seguimiento
-        $query->whereHas('seguimientos', function ($q) {
-            $q->where('id_estado', 5)
-              ->whereRaw('created_at = (
-                  SELECT MAX(s2.created_at)
-                  FROM seguimiento_expedientes as s2
-                  WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
-              )');
+        // Determinamos qué estado filtrar. Por defecto 5, o 11 si se solicita.
+        // Esto permite que la misma función maneje ambos casos.
+        $estadoFiltrar = $request->get('estado', 5);
+
+        // Filtrar por el Último estado (5 o 11)
+        $query->whereHas('seguimientos', function ($q) use ($estadoFiltrar) {
+            $q->where('id_estado', $estadoFiltrar)
+            ->whereRaw('created_at = (
+                SELECT MAX(s2.created_at)
+                FROM seguimiento_expedientes as s2
+                WHERE s2.id_expediente = seguimiento_expedientes.id_expediente
+            )');
         });
 
-        // Search functionality (optional but good to have)
-        if ($request->has('search')) {
+        // Funcionalidad de búsqueda
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('codigo_cliente', 'like', "%{$search}%")
-                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
-                  ->orWhere('cui', 'like', "%{$search}%");
+                $q->where('id', 'like', "%{$search}%")
+                ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                ->orWhere('cui', 'like', "%{$search}%");
             });
         }
 
-        // Eager loading similar to NuevoExpedienteController
+        // Eager loading y paginación
         $expedientes = $query->with([
             'garantias',
             'documentos.tipoDocumento',
-            'fechas', // Eager load 'fechas' relationship
-            'seguimientos' => function($query) {
-                $query->orderBy('id_seguimiento', 'desc');
+            'fechas',
+            'seguimientos' => function($q) {
+                $q->orderBy('id_seguimiento', 'desc');
             }
         ])
-        ->orderBy('created_at', 'desc') // Or order by modification date
+        ->orderBy('created_at', 'desc')
         ->paginate(10);
 
         return response()->json([
             'success' => true,
+            'estado_filtrado' => $estadoFiltrar,
             'data' => $expedientes
         ]);
     }
