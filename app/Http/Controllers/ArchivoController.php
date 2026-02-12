@@ -251,12 +251,12 @@ public function show($id_seguimiento)
             'numero_contrato'
         ])
         ->with([
-            // 1. Cargamos el expediente solo con el ID para vincular sus hijos
+            // 1. Cargamos el expediente con ID (para relación) y nombre_asociado (para vista)
             'nuevoExpediente' => function ($query) {
-                $query->select(['id']);
+                $query->select(['id', 'nombre_asociado']);
             },
 
-            // 2. Detalle de Garantías: Sin timestamps
+            // 2. Detalle de Garantías
             'nuevoExpediente.detalleGarantias' => function ($query) {
                 $query->select([
                     'id', 'nuevo_expediente_id', 'garantia_id',
@@ -265,7 +265,7 @@ public function show($id_seguimiento)
                 ]);
             },
 
-            // 3. Documentos: Sin timestamps y ocultando el objeto pivot
+            // 3. Documentos: Seleccionando campos técnicos
             'nuevoExpediente.documentos' => function ($query) {
                 $query->select([
                     'documentos.id', 'numero', 'fecha', 'propietario',
@@ -274,7 +274,7 @@ public function show($id_seguimiento)
                 ]);
             },
 
-            // 4. Bufete: Solo el nombre del abogado, sin fechas ni descripciones
+            // 4. Bufete y Usuario (Abogado)
             'bufete' => function ($query) {
                 $query->select(['id', 'user_id']);
             },
@@ -291,7 +291,7 @@ public function show($id_seguimiento)
         ], 404);
     }
 
-    // Limpieza final de objetos pivot en la colección de documentos
+    // Limpieza de pivot en la colección de documentos
     if ($detalle->nuevoExpediente && $detalle->nuevoExpediente->documentos) {
         $detalle->nuevoExpediente->documentos->makeHidden('pivot');
     }
@@ -301,4 +301,5 @@ public function show($id_seguimiento)
         'data' => $detalle
     ]);
 }
+
 }
