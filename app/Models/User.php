@@ -72,4 +72,25 @@ class User extends Authenticatable
     public function getAgenciaId() {
         return $this->agencia_data['id'] ?? null;
     }
+
+    // --- Compatibility Helpers para Laravel Auth (BadMethodCallException Fix) ---
+
+    /**
+     * Retorna si el usuario tiene un permiso específico.
+     * Laravel llama a este método internamente en contextos de API.
+     */
+    public function tokenCan($ability)
+    {
+        // Reutilizamos tu lógica de permisos existente
+        return $this->hasPermissionTo($ability);
+    }
+
+    /**
+     * Laravel a veces busca el token actual al autenticar.
+     * Como usas JWT externo, retornamos null.
+     */
+    public function currentAccessToken()
+    {
+        return null;
+    }
 }

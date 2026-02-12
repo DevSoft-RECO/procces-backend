@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http; // Added this use statement
+use App\Http\Controllers\BuscarEditarController;
 
 // Asegúrate de que el middleware 'sso' esté registrado en bootstrap/app.php
 Route::middleware('sso')->group(function () {
@@ -67,6 +68,11 @@ Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
 Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);
 Route::put('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoController::class, 'update']);
+
+//buscarexpedeintes
+
+
+Route::get('expedientes/search-edit', [BuscarEditarController::class, 'searchEdit']);
 
 // Nuevos Expedientes (Mis Expedientes)
 Route::get('/nuevos-expedientes', [App\Http\Controllers\NuevoExpedienteController::class, 'index']);

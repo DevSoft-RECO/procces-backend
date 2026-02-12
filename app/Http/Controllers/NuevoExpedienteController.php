@@ -47,15 +47,14 @@ class NuevoExpedienteController extends Controller
             }
         }
 
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                  ->orWhere('codigo_cliente', 'like', "%{$search}%")
-                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
-                  ->orWhere('cui', 'like', "%{$search}%");
-            });
-        }
+        // Lógica de búsqueda actualizada
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('id', 'like', "%{$search}%")
+                    ->orWhere('numero_documento', 'like', "%{$search}%");
+                });
+            }
 
         $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
             $query->orderBy('id_seguimiento', 'desc')->with('estado');
