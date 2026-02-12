@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\NuevoExpediente;
+use App\Models\SeguimientoExpediente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -197,80 +198,107 @@ class ArchivoController extends Controller
      * Listado optimizado para el Sistema de Archivo (Expedientes en Estado 11).
      * Trae solo los campos necesarios de la tabla principal y el último seguimiento.
      */
-    public function archivoSistema(Request $request)
-    {
-        $expedientes = NuevoExpediente::select([
-                'id',
-                'codigo_cliente',
-                'id_agencia',
-                'numero_documento',
-                'usuario_asesor',
-                'tasa_interes',
-                'monto_documento',
-                'tipo_garantia',
-                'fecha_inicio',
-                'cui',
-                'nombre_asociado'
-            ])
-            ->whereHas('seguimientos', function ($query) {
-                // Solo aquellos donde ambos flujos finalizaron (Estado 11)
-                $query->where('id_estado', 11)
-                      ->where('id_estado_secundario', 11)
-                      ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
-            })
-            ->with([
-                'seguimientos' => function ($query) {
-                    // Seleccionamos solo los campos de control de recepción y archivos
-                    $query->select([
-                        'id_seguimiento',
-                        'id_expediente',
-                        'recibi_pagare',
-                        'recibi_contrato',
-                        'recibi_garantia_real',
-                        'archivado_at',
-                        'archivo_administrativo',
-                        'path_contrato',
-                        'bufete_id'
-                    ])
-                    ->orderBy('created_at', 'desc')
-                    ->limit(1);
-                },
-                'agencia:id,nombre' // Para mostrar el nombre de la agencia en la tabla
-            ])
-            ->orderBy('id', 'desc')
-            ->paginate(20);
+/**
+     * Listado ultra-optimizado para el Sistema de Archivo.
+     * Solo devuelve los campos de la tabla principal.
+     */
+public function archivoSistema(Request $request)
+{
+    $expedientes = SeguimientoExpediente::select([
+            'id_seguimiento',
+            'id_expediente',
+            'archivado_at'
+        ])
+        ->where('id_estado', 11)
+        ->where('id_estado_secundario', 11)
+        ->with([
+            'nuevoExpediente' => function ($query) {
+                $query->select([
+                    'id',
+                    'codigo_cliente',
+                    'id_agencia',
+                    'numero_documento',
+                    'usuario_asesor',
+                    'tasa_interes',
+                    'monto_documento',
+                    'tipo_garantia',
+                    'fecha_inicio',
+                    'cui',
+                    'nombre_asociado'
+                ]);
+            }
+        ])
+        ->orderBy('id_seguimiento', 'desc')
+        ->paginate(20);
 
+    return response()->json([
+        'success' => true,
+        'data' => $expedientes
+    ]);
+}
+
+    /**
+     * Obtener únicamente la información técnica y legal que falta en el listado.
+     * Optimizada para no repetir datos del expediente ya cargados en el buzon.
+     */
+public function show($id_seguimiento)
+{
+    $detalle = \App\Models\SeguimientoExpediente::select([
+            'id_seguimiento',
+            'id_expediente',
+            'path_contrato',
+            'bufete_id',
+            'numero_contrato'
+        ])
+        ->with([
+            // 1. Cargamos el expediente solo con el ID para vincular sus hijos
+            'nuevoExpediente' => function ($query) {
+                $query->select(['id']);
+            },
+
+            // 2. Detalle de Garantías: Sin timestamps
+            'nuevoExpediente.detalleGarantias' => function ($query) {
+                $query->select([
+                    'id', 'nuevo_expediente_id', 'garantia_id',
+                    'codeudor1', 'codeudor2', 'codeudor3', 'codeudor4',
+                    'observacion1', 'observacion2', 'observacion3', 'observacion4'
+                ]);
+            },
+
+            // 3. Documentos: Sin timestamps y ocultando el objeto pivot
+            'nuevoExpediente.documentos' => function ($query) {
+                $query->select([
+                    'documentos.id', 'numero', 'fecha', 'propietario',
+                    'autorizador', 'no_finca', 'folio', 'libro',
+                    'no_dominio', 'referencia', 'monto_poliza', 'observacion'
+                ]);
+            },
+
+            // 4. Bufete: Solo el nombre del abogado, sin fechas ni descripciones
+            'bufete' => function ($query) {
+                $query->select(['id', 'user_id']);
+            },
+            'bufete.user' => function ($query) {
+                $query->select(['id', 'name']);
+            }
+        ])
+        ->find($id_seguimiento);
+
+    if (!$detalle) {
         return response()->json([
-            'success' => true,
-            'data' => $expedientes
-        ]);
+            'success' => false,
+            'message' => 'Detalle técnico no encontrado.'
+        ], 404);
     }
-    // public function archivoSistema(Request $request)
-    // {
-    //     $expedientes = NuevoExpediente::select([
-    //             'id',
-    //             'codigo_cliente',
-    //             'nombre_asociado',
-    //             'monto_documento'
-    //         ])
-    //         ->whereHas('seguimientos', function ($query) {
-    //             $query->where('id_estado', 11)
-    //                   ->where('id_estado_secundario', 11)
-    //                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
-    //         })
-    //         ->with([
-    //             'seguimientos' => function ($query) {
-    //                 $query->select(['id_expediente', 'archivado_at', 'recibi_pagare', 'recibi_contrato'])
-    //                       ->orderBy('created_at', 'desc')
-    //                       ->limit(1);
-    //             }
-    //         ])
-    //         ->orderBy('id', 'desc')
-    //         ->paginate(20);
 
-    //     return response()->json([
-    //         'success' => true,
-    //         'data' => $expedientes
-    //     ]);
-    // }
+    // Limpieza final de objetos pivot en la colección de documentos
+    if ($detalle->nuevoExpediente && $detalle->nuevoExpediente->documentos) {
+        $detalle->nuevoExpediente->documentos->makeHidden('pivot');
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => $detalle
+    ]);
+}
 }
