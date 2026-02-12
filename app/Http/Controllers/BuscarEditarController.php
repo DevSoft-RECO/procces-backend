@@ -41,6 +41,7 @@ public function searchEdit(Request $request)
                 'id' => $expediente->id,
                 'codigo_cliente' => $expediente->codigo_cliente,
                 'nombre_asociado' => $expediente->nombre_asociado,
+                'numero_documento' => $expediente->numero_documento,
             ],
             'garantias' => $expediente->garantias,
             'documentos' => $expediente->documentos->map(function($doc) {
