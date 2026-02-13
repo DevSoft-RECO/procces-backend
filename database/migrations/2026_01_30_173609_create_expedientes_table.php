@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // Importante para el índice FullText
 
 return new class extends Migration
 {
@@ -12,29 +13,41 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('expedientes', function (Blueprint $table) {
-            // Primary Key
-            $table->integer('codigo_cliente')->primary();
+            // ID Autoincremental como llave primaria única
+            $table->id();
 
-            // CSV Mapped Columns
+            // Código de cliente (ahora permite duplicados históricos)
+            $table->integer('codigo_cliente')->index();
+
             $table->string('agencia', 100)->nullable();
-            // $table->string('usuario_asesor', 50)->nullable();
             $table->date('fecha_inicio')->nullable();
-            $table->string('cta_bw', 50)->nullable(); // Was cuenta_bw
-            $table->string('numero_documento', 50)->nullable();
+            $table->string('cta_bw', 50)->nullable();
+
+            // INDEXACIÓN: Número de documento para búsquedas rápidas
+            $table->string('numero_documento', 50)->nullable()->index();
+
             $table->string('cif', 50)->nullable();
-            $table->string('asociado', 255)->nullable(); // Was nombre_asociado
-            $table->decimal('monto', 18, 2)->nullable(); // Was monto_documento
+            $table->string('asociado', 255)->nullable();
+            $table->decimal('monto', 18, 2)->nullable();
             $table->string('tipo_garantia', 255)->nullable();
+
+            // Campo de texto para datos de garantía
             $table->text('datos_garantia')->nullable();
+
             $table->string('contrato', 100)->nullable();
             $table->text('inscripcion_otros_contratos')->nullable();
             $table->string('ingreso', 255)->nullable();
             $table->string('inventario', 255)->nullable();
-            $table->text('salida')->nullable(); // Can be reasoning text or date
+            $table->text('salida')->nullable();
             $table->text('observacion')->nullable();
             $table->string('estado', 50)->nullable();
+
             $table->timestamps();
         });
+
+        // INDEXACIÓN FULLTEXT para el campo TEXT (Específico para búsquedas de palabras)
+        // Esto permite usar: WHERE MATCH(datos_garantia) AGAINST('termino')
+        DB::statement('ALTER TABLE expedientes ADD FULLTEXT fulltext_garantia(datos_garantia)');
     }
 
     /**
