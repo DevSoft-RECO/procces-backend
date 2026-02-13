@@ -19,9 +19,12 @@ class ArchivoController extends Controller
     $expedientes = NuevoExpediente::select([
             'id',
             'codigo_cliente',
+            'cui',
             'nombre_asociado',
             'tasa_interes',
-            'monto_documento'
+            'monto_documento',
+            'numero_documento',
+            'fecha_inicio'
         ])
         ->whereHas('seguimientos', function ($query) {
             // 1. Condición de permanencia: Debe tener al menos uno en 4
