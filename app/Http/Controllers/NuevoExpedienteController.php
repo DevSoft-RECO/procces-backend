@@ -316,39 +316,65 @@ public function addDocumento(Request $request, $id)
     /**
      * Actualizar datos de la garantía en el expediente (pivot).
      */
-    public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId)
-    {
-        $expediente = NuevoExpediente::findOrFail($expedienteId);
+public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId)
+{
+    $expediente = NuevoExpediente::findOrFail($expedienteId);
 
-        try {
-            DB::beginTransaction();
+    // 1. Buscamos la garantía para verificar la regla de 'desplegables'
+    $tipoGarantia = \App\Models\Garantia::findOrFail($garantiaId);
 
-            $expediente->garantias()->updateExistingPivot($garantiaId, [
-                'codeudor1' => $request->codeudor1,
-                'codeudor2' => $request->codeudor2,
-                'codeudor3' => $request->codeudor3,
-                'codeudor4' => $request->codeudor4,
+    try {
+        DB::beginTransaction();
+
+        // 2. Definimos los datos base del pivot
+        $pivotData = [];
+
+        if ($tipoGarantia->desplegables == 1) {
+            // Si tiene desplegables, tomamos lo que viene del request
+            $pivotData = [
+                'codeudor1'    => $request->codeudor1,
+                'codeudor2'    => $request->codeudor2,
+                'codeudor3'    => $request->codeudor3,
+                'codeudor4'    => $request->codeudor4,
                 'observacion1' => $request->observacion1,
                 'observacion2' => $request->observacion2,
                 'observacion3' => $request->observacion3,
                 'observacion4' => $request->observacion4,
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Garantía actualizada correctamente.'
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar garantía: ' . $e->getMessage()
-            ], 500);
+            ];
+        } else {
+            // SI ES 0: Forzamos el borrado de cualquier dato previo enviando null
+            $pivotData = [
+                'codeudor1'    => null,
+                'codeudor2'    => null,
+                'codeudor3'    => null,
+                'codeudor4'    => null,
+                'observacion1' => null,
+                'observacion2' => null,
+                'observacion3' => null,
+                'observacion4' => null,
+            ];
         }
+
+        // 3. Actualizamos la tabla pivot
+        $expediente->garantias()->updateExistingPivot($garantiaId, $pivotData);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => $tipoGarantia->desplegables == 0
+                ? 'Garantía actualizada (Datos adicionales limpiados por tipo de garantía).'
+                : 'Garantía actualizada correctamente.'
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar garantía: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Cambiar el tipo de garantía (reemplazar la garantía actual por otra).
