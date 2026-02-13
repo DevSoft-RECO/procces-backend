@@ -164,91 +164,89 @@ class NuevoExpedienteController extends Controller
     /**
      * Verificar si existen documentos con número y fecha.
      */
-    public function checkDocumento(Request $request)
-    {
-        $request->validate([
-            'numero' => 'required|string',
-            'fecha' => 'required|date'
-        ]);
+public function checkDocumento(Request $request)
+{
+    $request->validate([
+        'numero' => 'required|string',
+        'fecha' => 'required|date'
+    ]);
 
-        $documentos = \App\Models\Documento::where('numero', $request->numero)
-                        ->where('fecha', $request->fecha)
-                        ->with('tipoDocumento', 'registroPropiedad')
-                        ->get(); // Get ALL matches
+    // Usamos withCount para obtener cuántos expedientes tiene cada documento
+    $documentos = \App\Models\Documento::where('numero', $request->numero)
+                    ->where('fecha', $request->fecha)
+                    ->with('tipoDocumento', 'registroPropiedad')
+                    ->withCount('nuevosExpedientes') // <--- Agregamos el conteo
+                    ->get();
 
-        if ($documentos->isNotEmpty()) {
-            // Check association for each document
-            $mappedDocs = $documentos->map(function ($doc) use ($request) {
-                $alreadyLinked = false;
-                if ($request->has('nuevo_expediente_id')) {
-                    $alreadyLinked = $doc->nuevosExpedientes()
-                                       ->where('nuevos_expedientes.id', $request->nuevo_expediente_id)
-                                       ->exists();
-                }
-                $doc->already_linked = $alreadyLinked;
-                return $doc;
-            });
-
-            return response()->json([
-                'success' => true,
-                'found' => true,
-                'data' => $mappedDocs
-            ]);
-        }
+    if ($documentos->isNotEmpty()) {
+        $mappedDocs = $documentos->map(function ($doc) use ($request) {
+            $alreadyLinked = false;
+            if ($request->has('nuevo_expediente_id')) {
+                $alreadyLinked = $doc->nuevosExpedientes()
+                                     ->where('nuevos_expedientes.id', $request->nuevo_expediente_id)
+                                     ->exists();
+            }
+            $doc->already_linked = $alreadyLinked;
+            // El frontend recibirá 'nuevos_expedientes_count' automáticamente
+            return $doc;
+        });
 
         return response()->json([
             'success' => true,
-            'found' => false,
-            'data' => []
+            'found' => true,
+            'data' => $mappedDocs
         ]);
     }
+
+    return response()->json(['success' => true, 'found' => false, 'data' => []]);
+}
 
     /**
      * Crear y asociar un documento a un expediente nuevo.
      * Si se envía 'documento_id', solo asocia.
      */
-    public function addDocumento(Request $request, $id)
-    {
-        $expediente = NuevoExpediente::findOrFail($id);
+public function addDocumento(Request $request, $id)
+{
+    $expediente = NuevoExpediente::findOrFail($id);
 
-        try {
-            DB::beginTransaction();
+    try {
+        DB::beginTransaction();
 
-            $docId = $request->input('documento_id');
-            $action = 'vinculado';
+        $docId = $request->input('documento_id');
+        $action = 'vinculado';
 
-            if ($docId) {
-                // Vincular existente
-                $expediente->documentos()->syncWithoutDetaching([$docId]);
-            } else {
-                // Crear nuevo
-                $request->validate([
-                    'tipo_documento_id' => 'required|exists:tipo_documentos,id',
-                    'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
-                    'numero' => 'nullable|string|max:30',
-                    // ... other validations are implicitly handled by create if data passed correctly
-                ]);
+        if ($docId) {
+            $documento = \App\Models\Documento::findOrFail($docId);
 
-                $documento = \App\Models\Documento::create($request->all());
-                $expediente->documentos()->attach($documento->id);
-                $action = 'creado y vinculado';
+            // VALIDACIÓN DE EDICIÓN:
+            // Si el expediente está en estado 2 y el documento solo tiene 1 (este mismo) o 0 expedientes
+            if ($expediente->id_estado == 2 && $documento->nuevosExpedientes()->count() <= 1) {
+                // Actualizamos con los datos que vienen del formulario
+                $documento->update($request->all());
+                $action = 'actualizado y vinculado';
             }
 
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => "Documento {$action} correctamente al expediente."
+            $expediente->documentos()->syncWithoutDetaching([$docId]);
+        } else {
+            // Lógica de creación normal
+            $request->validate([
+                'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+                'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
             ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al procesar el documento: ' . $e->getMessage()
-            ], 500);
+            $documento = \App\Models\Documento::create($request->all());
+            $expediente->documentos()->attach($documento->id);
+            $action = 'creado y vinculado';
         }
+
+        DB::commit();
+        return response()->json(['success' => true, 'message' => "Documento {$action} correctamente."]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
     }
+}
 
     /**
      * Desvincular un documento de un expediente.
