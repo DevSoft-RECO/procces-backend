@@ -56,6 +56,17 @@ Route::middleware('sso')->group(function () {
     Route::post('/agencias/sync', [App\Http\Controllers\AgenciaController::class, 'sync']);
     Route::apiResource('agencias', App\Http\Controllers\AgenciaController::class);
 
+  // Dashboard Analytics
+Route::prefix('dashboard')->group(function () {
+    Route::get('/kpi', [App\Http\Controllers\DashboardController::class, 'kpi']);
+    Route::get('/pipeline', [App\Http\Controllers\DashboardController::class, 'pipeline']);
+    Route::get('/advisors', [App\Http\Controllers\DashboardController::class, 'advisors']);
+    Route::get('/rejections', [App\Http\Controllers\DashboardController::class, 'rejections']);
+    Route::get('/agencies', [App\Http\Controllers\DashboardController::class, 'agencies']);
+    Route::get('/trends', [App\Http\Controllers\DashboardController::class, 'trends']);
+});
+
+// Catalog Routes
     Route::apiResource('bufetes', App\Http\Controllers\BufeteController::class);
     Route::apiResource('registros-propiedad', App\Http\Controllers\RegistroPropiedadController::class);
     Route::apiResource('tipo-estados', App\Http\Controllers\TipoEstadoController::class);
