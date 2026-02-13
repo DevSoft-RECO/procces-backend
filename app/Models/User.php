@@ -73,6 +73,11 @@ class User extends Authenticatable
         return $this->agencia_data['id'] ?? null;
     }
 
+    // En App\Models\User.php
+public function bufete() {
+    return $this->hasOne(Bufete::class, 'user_id');
+}
+
     // --- Compatibility Helpers para Laravel Auth (BadMethodCallException Fix) ---
 
     /**

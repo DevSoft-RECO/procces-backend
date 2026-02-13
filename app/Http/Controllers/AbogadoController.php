@@ -110,20 +110,38 @@ class AbogadoController extends Controller
     /**
      * List expedientes returned to Secretaria (State 10).
      */
-    public function devueltos(Request $request)
-    {
-        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
-            $query->where('id_estado', 10)
-                  ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
-        })
-        ->with(['seguimientos' => function ($query) {
-            $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
-        }, 'fechas'])
-        ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $expedientes
-        ]);
+public function devueltos(Request $request)
+{
+    $user = $request->user();
+    $isSuperAdmin = $user->hasRole('Super Admin');
+
+    // Iniciamos la consulta base con los campos optimizados
+    $query = NuevoExpediente::select([
+            'id',
+            'codigo_cliente',
+            'nombre_asociado',
+            'numero_documento'
+        ])
+        ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
+
+    // APLICACIÓN DE RESTRICCIONES
+    if (!$isSuperAdmin) {
+        // Si NO es admin, solo ve expedientes donde ÉL (su bufete)
+        // haya tenido participación en los seguimientos
+        $query->whereHas('seguimientos', function ($q) use ($user) {
+            $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
+            $q->where('bufete_id', $bufeteId);
+        });
+    } else {
+        // Si ES Super Admin, solo nos aseguramos de que el expediente
+        // tenga al menos un seguimiento (para que sea un expediente con historial)
+        $query->has('seguimientos');
     }
+
+    $expedientes = $query->latest()->paginate(15);
+
+    return response()->json($expedientes);
+}
+
 }
