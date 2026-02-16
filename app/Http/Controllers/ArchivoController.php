@@ -18,6 +18,7 @@ class ArchivoController extends Controller
 {
     $expedientes = NuevoExpediente::select([
             'id',
+            'id_agencia',
             'codigo_cliente',
             'cui',
             'nombre_asociado',
@@ -37,6 +38,9 @@ class ArchivoController extends Controller
             ->where('id_estado_secundario', '!=', 11)
 
             ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+        })
+        ->when($request->id_agencia && $request->id_agencia !== 'todas', function ($query) use ($request) {
+            $query->where('id_agencia', $request->id_agencia);
         })
         ->with([
             'fechas:id_expediente,f_enviado_archivos',
