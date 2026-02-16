@@ -11,56 +11,70 @@ class BuscarEditarController extends Controller
      * Busca un expediente por ID o número de documento y retorna
      * todos sus detalles para la vista de edición.
      */
-public function searchEdit(Request $request)
-{
-    $search = $request->query('search');
+    public function searchEdit(Request $request)
+    {
+        $search = $request->query('search');
 
-    if (!$search) {
-        return response()->json(['success' => false, 'message' => 'Criterio vacío'], 400);
-    }
+        if (!$search) {
+            return response()->json(['success' => false, 'message' => 'Criterio vacío'], 400);
+        }
 
-    // Buscamos el expediente con carga profunda de relaciones
-    $expediente = NuevoExpediente::where('id', $search)
-        ->orWhere('numero_documento', 'like', "%{$search}%")
-        ->with([
-            'garantias',
-            'documentos.tipoDocumento',
-            'documentos.registroPropiedad'
+        // Estrategia: Buscar en SeguimientoExpediente para obtener el estado y el expediente asociado
+        $query = \App\Models\SeguimientoExpediente::query()
+            ->whereHas('nuevoExpediente', function($q) use ($search) {
+                $q->where('id', $search)
+                  ->orWhere('numero_documento', 'like', "%{$search}%");
+            });
+
+        // Filtro por Agencia (Permiso), EXCLUYENDO al Super Admin
+        $user = auth()->user();
+        if ($user && !$user->hasRole('Super Admin') && $user->hasPermissionTo('secretaria_agencia')) {
+            $agenciaId = $user->getAgenciaId();
+            if ($agenciaId) {
+                // Filtramos sobre la relación nuevoExpediente
+                $query->whereHas('nuevoExpediente', function($q) use ($agenciaId) {
+                    $q->where('id_agencia', $agenciaId);
+                });
+            }
+        }
+
+        // Obtener el último seguimiento (el actual)
+        $seguimiento = $query->with([
+            'nuevoExpediente.garantias',
+            'nuevoExpediente.documentos.tipoDocumento',
+            'nuevoExpediente.documentos.registroPropiedad'
         ])
+        ->orderBy('id_seguimiento', 'desc')
         ->first();
 
-    if (!$expediente) {
-        return response()->json(['success' => false], 404);
+        // Validamos si se encontró seguimiento y su expediente
+        if (!$seguimiento || !$seguimiento->nuevoExpediente) {
+            return response()->json(['success' => false, 'message' => 'Expediente no encontrado'], 200);
+        }
+
+        $expediente = $seguimiento->nuevoExpediente;
+        $estado = $seguimiento->id_estado;
+
+        // Retornamos la estructura
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'expediente' => [
+                    'id' => $expediente->id,
+                    'codigo_cliente' => $expediente->codigo_cliente,
+                    'nombre_asociado' => $expediente->nombre_asociado,
+                    'numero_documento' => $expediente->numero_documento,
+                    'id_estado' => $estado, // Estado obtenido de la tabla seguimiento
+                ],
+                'garantias' => $expediente->garantias,
+                'documentos' => $expediente->documentos->map(function($doc) {
+                    $count = $doc->nuevosExpedientes()->count();
+                    $doc->expedientes_asociados_count = ($count > 1) ? $count - 1 : 0;
+                    return $doc;
+                })
+            ]
+        ]);
     }
-
-    // Retornamos la estructura que tus componentes de Vue ya consumen
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'expediente' => [
-                'id' => $expediente->id,
-                'codigo_cliente' => $expediente->codigo_cliente,
-                'nombre_asociado' => $expediente->nombre_asociado,
-                'numero_documento' => $expediente->numero_documento,
-            ],
-            'garantias' => $expediente->garantias,
-            'documentos' => $expediente->documentos->map(function($doc) {
-                $count = $doc->nuevosExpedientes()->count();
-
-                // Si el conteo es mayor a 1, restamos el actual para mostrar "otros X"
-                // Si es 1 o menos, el contador será 0 o 1 según prefieras
-                $doc->expedientes_asociados_count = ($count > 1) ? $count - 1 : 0;
-
-                return $doc;
-            })
-        ]
-    ]);
-    /**
-     * Retorna la lista de expedientes asociados a un documento específico.
-     * Carga diferida para no bloquear la búsqueda principal.
-     */
-
-}
 
     public function getExpedientesAsociados($id)
     {
