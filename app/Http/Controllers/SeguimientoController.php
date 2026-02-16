@@ -312,4 +312,34 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+    /**
+     * Actualizar Observación Legal (Sin cambiar estado).
+     */
+    public function actualizarObservacionLegal(Request $request)
+    {
+        $request->validate([
+            'expediente_id' => 'required|exists:nuevos_expedientes,id',
+            'observacion_legal' => 'required|string|max:1000'
+        ]);
+
+        $id = $request->expediente_id;
+
+        try {
+            $seguimiento = SeguimientoExpediente::firstOrNew(['id_expediente' => $id]);
+            $seguimiento->observacion_legal = $request->observacion_legal;
+            $seguimiento->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Observación legal actualizada correctamente.',
+                'data' => $seguimiento
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar observación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

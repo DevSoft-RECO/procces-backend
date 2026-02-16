@@ -106,6 +106,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/seguimiento/aceptar', [App\Http\Controllers\SeguimientoController::class, 'aceptarExpediente']);
     Route::post('/seguimiento/enviar-archivo', [App\Http\Controllers\SeguimientoController::class, 'enviarArchivo']);
     Route::post('/seguimiento/enviar-protocolo', [App\Http\Controllers\SeguimientoController::class, 'enviarProtocolo']);
+    Route::post('/seguimiento/observacion-legal', [App\Http\Controllers\SeguimientoController::class, 'actualizarObservacionLegal']);
 
 
 
