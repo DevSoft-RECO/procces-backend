@@ -219,8 +219,14 @@ public function addDocumento(Request $request, $id)
             $documento = \App\Models\Documento::findOrFail($docId);
 
             // VALIDACIÓN DE EDICIÓN:
-            // Si el expediente está en estado 2 y el documento solo tiene 1 (este mismo) o 0 expedientes
-            if ($expediente->id_estado == 2 && $documento->nuevosExpedientes()->count() <= 1) {
+            // Permitir si:
+            // 1. Estado es 2 (Retornado)
+            // 2. O NO tiene seguimientos (Nuevo / Aún no enviado)
+            $lastSeguimiento = $expediente->seguimientos()->latest()->first();
+            $currentState = $lastSeguimiento ? $lastSeguimiento->id_estado : 0;
+            $hasTracking = $expediente->seguimientos()->exists();
+
+            if (($currentState == 2 || !$hasTracking) && $documento->nuevosExpedientes()->count() <= 1) {
                 // Actualizamos con los datos que vienen del formulario
                 $documento->update($request->all());
                 $action = 'actualizado y vinculado';
