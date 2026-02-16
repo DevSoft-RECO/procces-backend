@@ -18,7 +18,8 @@ return new class extends Migration
             $table->unsignedBigInteger('codigo_cliente')->nullable()->index();
 
             // Mapped ID (was EMPRESA text)
-            $table->unsignedInteger('id_agencia')->nullable()->index();
+            $table->unsignedBigInteger('id_agencia')->nullable()->index();
+            $table->foreign('id_agencia')->references('id')->on('agencias');
 
             // Other fields matches CSV structure
             $table->string('numero_documento', 50)->nullable();

@@ -18,4 +18,12 @@ class Agencia extends Model
         'nombre',
         'codigo',
     ];
+
+    /**
+     * Get the expedientes for the agency.
+     */
+    public function expedientes()
+    {
+        return $this->hasMany(NuevoExpediente::class, 'id_agencia', 'id');
+    }
 }
