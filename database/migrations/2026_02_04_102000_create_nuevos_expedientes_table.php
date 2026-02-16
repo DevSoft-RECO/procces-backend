@@ -35,6 +35,8 @@ return new class extends Migration
             // Skipping NOMBRE 1 (Col 10) and APELLIDO 1 (Col 11)
             $table->string('nombre_asociado', 255)->nullable();
 
+            $table->string('estado', 20)->default('activo'); // Estado: activo | Cancelado
+
             $table->timestamps();
         });
     }

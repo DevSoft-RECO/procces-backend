@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
-            $table->timestamp('archivado_at')->nullable();
+            $table->timestamp('archivado_at')->nullable()->after('recibi_contrato');
+            $table->text('observacion_legal')->nullable()->after('archivado_at');
         });
     }
 
@@ -22,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
-            $table->dropColumn('archivado_at');
+            $table->dropColumn(['observacion_legal', 'archivado_at']);
         });
     }
 };

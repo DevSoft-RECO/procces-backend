@@ -24,6 +24,7 @@ class NuevoExpediente extends Model
         'fecha_inicio',
         'cui',
         'nombre_asociado',
+        'estado',
     ];
 
     protected $casts = [

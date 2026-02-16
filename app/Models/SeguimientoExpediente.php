@@ -27,6 +27,7 @@ class SeguimientoExpediente extends Model
         'recibi_pagare',
         'recibi_garantia_real',
         'recibi_contrato',
+        'observacion_legal',
         'archivado_at',
     ];
 
