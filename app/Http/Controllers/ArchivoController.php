@@ -51,7 +51,8 @@ class ArchivoController extends Controller
                     'recibi_contrato',
                     'archivado_at',
                     'id_estado',
-                    'id_estado_secundario'
+                    'id_estado_secundario',
+                    'numero_contrato'
                 ])
                 ->orderBy('created_at', 'desc')
                 ->limit(1);
