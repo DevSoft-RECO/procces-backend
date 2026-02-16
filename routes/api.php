@@ -143,4 +143,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Tracking (Historial Centralizado)
     Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);
+
+    // Traslado de Expedientes
+    Route::get('/traslado-expedientes/search', [App\Http\Controllers\TrasladarExpedientesController::class, 'search']);
+    Route::put('/traslado-expedientes/{id}/asesor', [App\Http\Controllers\TrasladarExpedientesController::class, 'updateAsesor']);
 });
