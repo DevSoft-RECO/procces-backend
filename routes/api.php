@@ -147,4 +147,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     // Traslado de Expedientes
     Route::get('/traslado-expedientes/search', [App\Http\Controllers\TrasladarExpedientesController::class, 'search']);
     Route::put('/traslado-expedientes/{id}/asesor', [App\Http\Controllers\TrasladarExpedientesController::class, 'updateAsesor']);
+
+    // Edición de Seguimiento
+    Route::get('/editar-seguimiento/search', [App\Http\Controllers\EditarSeguimientoController::class, 'search']);
+    Route::put('/editar-seguimiento/{id}', [App\Http\Controllers\EditarSeguimientoController::class, 'update']);
 });
