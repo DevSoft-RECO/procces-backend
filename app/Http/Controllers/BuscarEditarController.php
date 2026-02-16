@@ -65,6 +65,7 @@ class BuscarEditarController extends Controller
                     'nombre_asociado' => $expediente->nombre_asociado,
                     'numero_documento' => $expediente->numero_documento,
                     'id_estado' => $estado, // Estado obtenido de la tabla seguimiento
+                    'id_estado_secundario' => $seguimiento->id_estado_secundario,
                 ],
                 'garantias' => $expediente->garantias,
                 'documentos' => $expediente->documentos->map(function($doc) {
