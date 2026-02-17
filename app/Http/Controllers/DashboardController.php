@@ -167,34 +167,62 @@ class DashboardController extends Controller
     /**
      * Agency Performance
      */
-    public function agencies()
+    public function agencies(Request $request)
     {
         $agencies = \App\Models\Agencia::all();
         $data = [];
 
         foreach ($agencies as $agency) {
+            $total = NuevoExpediente::where('id_agencia', $agency->id)->count();
+
             $active = NuevoExpediente::where('id_agencia', $agency->id)
                 ->whereHas('seguimientos', function($q) { $q->where('id_estado', '!=', 11); })
                 ->count();
 
-            $finalized = NuevoExpediente::where('id_agencia', $agency->id)
-                ->whereHas('seguimientos', function($q) { $q->where('id_estado', 11); })
+            // Rejected at least once
+            $rejectedCount = NuevoExpediente::where('id_agencia', $agency->id)
+                ->whereHas('fechas', function($q){
+                        $q->whereNotNull('f_retorno_asesores');
+                })
                 ->count();
+
+            // Rejection Rate
+            $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
+
+            // Success Rate (Clean Cases / Total)
+            $cleanCount = $total - $rejectedCount;
+            $successRate = $total > 0 ? round(($cleanCount / $total) * 100, 1) : 0;
 
             $data[] = [
                 'agency' => $agency->nombre,
                 'active' => $active,
-                'finalized' => $finalized,
-                'total' => $active + $finalized
+                'rejected_cases' => $rejectedCount,
+                'total' => $total,
+                'rejection_rate' => $rate,
+                'success_rate' => $successRate
             ];
         }
 
-        // Sort by volume
+        // Sort by active cases descending
         usort($data, function($a, $b) {
-            return $b['total'] <=> $a['total'];
+            return $b['active'] <=> $a['active'];
         });
 
-        return response()->json($data);
+        // Pagination
+        $page = $request->input('page', 1);
+        $perPage = 10;
+        $offset = ($page - 1) * $perPage;
+
+        $items = array_slice($data, $offset, $perPage);
+        $total = count($data);
+
+        return response()->json([
+            'data' => $items,
+            'current_page' => (int)$page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'last_page' => ceil($total / $perPage)
+        ]);
     }
 
     /**
