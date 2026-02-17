@@ -64,6 +64,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/rejections', [App\Http\Controllers\DashboardController::class, 'rejections']);
     Route::get('/agencies', [App\Http\Controllers\DashboardController::class, 'agencies']);
     Route::get('/trends', [App\Http\Controllers\DashboardController::class, 'trends']);
+    Route::get('/processing-times', [App\Http\Controllers\DashboardController::class, 'processingTimes']);
 });
 
 // Catalog Routes
