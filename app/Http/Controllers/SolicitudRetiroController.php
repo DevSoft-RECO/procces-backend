@@ -24,46 +24,84 @@ class SolicitudRetiroController extends Controller
         }
 
         // 1. Buscar en NuevoExpediente por número de documento
-        $expediente = NuevoExpediente::where('numero_documento', $termino)->latest()->first();
+        // Cargamos también los documentos asociados para validación y retorno
+        $expediente = NuevoExpediente::with(['documentos.tipoDocumento', 'documentos.registroPropiedad'])
+            ->where('numero_documento', $termino)
+            ->latest()
+            ->first();
 
         if (!$expediente) {
+             // Si no existe el expediente, no hay nada que pedir (Regla estricta solicitada)
+             // Aunque el frontend maneja "found: false" para manual, el usuario pidió corregir lógica base.
+             // Mantendremos la respuesta de "no encontrado" pero el frontend decidirá si muestra manual o no.
             return response()->json([
                 'found' => false,
                 'message' => 'No se encontró ningún expediente con ese número de documento.',
                 'data' => [
                     'numero_documento' => $termino,
-                    'es_manual' => true // Aún permitimos manual si no existe del todo? El usuario dijo "no podemos pedir algo a algo que no tiene nada vinculado".
-                                        // Pero la opción manual es para casos extremos. Mantengamos flag manual pero con aviso.
+                    'es_manual' => true
                 ]
             ]);
         }
 
-        // 2. Validar que exista en SeguimientoExpediente
-        // "todo expediente que ya entro ahi es porque tiene un documento asociado"
+        // 2. CASO 3: Validar que exista en SeguimientoExpediente
         $tieneSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expediente->id)->exists();
 
         if (!$tieneSeguimiento) {
              return response()->json([
-                'error' => true, // Bloquear la operación
+                'error' => true,
                 'message' => 'El expediente existe pero no tiene garantías asociadas aún.',
                 'bloqueado' => true
             ]);
         }
 
-        // 3. Validar reglas de negocio (Bloqueo si está amarrado a OTRO activo?)
-        // La regla original era: "no se podra retirar un expedeinte solo si el documento adjunto no esta amarrado a OTRO expediente que este en estado activo"
-        // Si usamos el expediente encontrado como base, verificamos si su documento se comparte.
-        // Como ahora partimos del Expediente y no del Documento (ID), es más difícil ver "otros".
-        // Sin embargo, si el flujo es simplificado:
+        // 3. CASO 1: Validar reglas de negocio con los DOCUMENTOS asociados (Relación Eloquent)
+        // Verificar si algún documento está compartido con OTRO expediente ACTIVO
+        if ($expediente->documentos->isNotEmpty()) {
+            foreach ($expediente->documentos as $doc) {
+                // Verificar si este documento está vinculado a OTROS expedientes que estén ACTIVOS
+                $otrosActivos = $doc->nuevosExpedientes()
+                    ->where('nuevos_expedientes.id', '!=', $expediente->id) // Diferente al actual
+                    ->where('nuevos_expedientes.estado', 'activo') // Estado de bloqueo
+                    ->get();
 
-        // Retornamos la data del expediente encontrado y validado
+                if ($otrosActivos->count() > 0) {
+                     $info = $otrosActivos->map(fn($e) => $e->numero_documento)->join(', ');
+                     return response()->json([
+                        'error' => true,
+                        // Mensaje Caso 1
+                        'message' => "No se puede retirar porque la garantía No.({$doc->numero}) está amarrada a otro expediente ({$info}) que aún está activo. Soliciten su revisión para verificar si está activo o solo no le han dado de baja.",
+                        'bloqueado' => true
+                    ]);
+                }
+            }
+        }
+
+        // 4. CASO 2: Validar estado del expediente ACTUAL
+        // "si el docuemnto esta amarrado a otro expediente pero esta ya no esta activo pero el actual sigue activo"
+        // (Ya pasamos la validación de "otro activo", así que si llegamos aquí, los otros están inactivos o no existen)
+        if ($expediente->estado == 'activo') {
+             return response()->json([
+                'error' => true,
+                // Mensaje Caso 2
+                'message' => 'Este expediente aún se encuentra activo. Si el crédito ya ha sido cancelado, solicite su baja en archivo para poder proceder con la liberación de la solicitud.',
+                'bloqueado' => true
+            ]);
+        }
+
+        // 5. CASO 4: Liberación
+        // Si ninguna de estos casos se cumple, se libera la solicitud (con datos precargados)
+        $docPrincipal = $expediente->documentos->first();
+
         return response()->json([
             'found' => true,
             'data' => [
                 'numero_documento' => $expediente->numero_documento,
                 'titulo_nombre' => $expediente->nombre_asociado,
                 'id_expediente' => $expediente->id,
-                'es_manual' => false
+                'es_manual' => false,
+                'documento_info' => $docPrincipal,
+                'documentos' => $expediente->documentos
             ]
         ]);
     }
