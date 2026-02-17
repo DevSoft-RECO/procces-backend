@@ -154,4 +154,11 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     // Edición de Seguimiento
     Route::get('/editar-seguimiento/search', [App\Http\Controllers\EditarSeguimientoController::class, 'search']);
     Route::put('/editar-seguimiento/{id}', [App\Http\Controllers\EditarSeguimientoController::class, 'update']);
+
+    // Retiro de Garantías
+    Route::post('/solicitudes-retiro/search', [App\Http\Controllers\SolicitudRetiroController::class, 'search']);
+    Route::post('/solicitudes-retiro', [App\Http\Controllers\SolicitudRetiroController::class, 'store']);
+    Route::get('/solicitudes-retiro/agencia', [App\Http\Controllers\SolicitudRetiroController::class, 'indexAgency']);
+    Route::get('/solicitudes-retiro/archivo', [App\Http\Controllers\SolicitudRetiroController::class, 'indexArchive']);
+    Route::post('/solicitudes-retiro/{id}/despachar', [App\Http\Controllers\SolicitudRetiroController::class, 'dispatchRequest']);
 });
