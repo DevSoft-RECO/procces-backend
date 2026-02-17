@@ -99,12 +99,18 @@ class DashboardController extends Controller
             // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
 
+            // Success Rate (Clean Cases / Total)
+            $cleanCount = $total - $rejectedCount;
+            $successRate = $total > 0 ? round(($cleanCount / $total) * 100, 1) : 0;
+
             $metrics[] = [
                 'asesor' => $advisor,
                 'active_cases' => $active,
                 'rejected_cases' => $rejectedCount,
                 'total_cases' => $total,
-                'rejection_rate' => $rate
+                'rejection_rate' => $rate,
+                'success_rate' => $successRate,
+                'clean_cases' => $cleanCount
             ];
         }
 
