@@ -63,6 +63,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/advisors', [App\Http\Controllers\DashboardController::class, 'advisors']);
     Route::get('/rejections', [App\Http\Controllers\DashboardController::class, 'rejections']);
     Route::get('/agencies', [App\Http\Controllers\DashboardController::class, 'agencies']);
+    Route::get('/agencies-list', [App\Http\Controllers\DashboardController::class, 'agenciesList']);
     Route::get('/trends', [App\Http\Controllers\DashboardController::class, 'trends']);
     Route::get('/processing-times', [App\Http\Controllers\DashboardController::class, 'processingTimes']);
 });

@@ -87,4 +87,13 @@ class NuevoExpediente extends Model
     {
         return $this->belongsTo(Agencia::class, 'id_agencia', 'id');
     }
+
+    /**
+     * Get the advisor (user) associated with the expediente.
+     */
+    public function asesor()
+    {
+        // 'usuario_asesor' in nuevos_expedientes matches 'username' in users
+        return $this->belongsTo(User::class, 'usuario_asesor', 'username');
+    }
 }

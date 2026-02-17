@@ -69,34 +69,54 @@ class DashboardController extends Controller
      */
     public function advisors(Request $request)
     {
-        // 1. Valid Advisors (those with assigned cases)
-        $advisors = NuevoExpediente::select('usuario_asesor')
+        $query = NuevoExpediente::with('asesor')
+            ->select('usuario_asesor')
             ->whereNotNull('usuario_asesor')
-            ->distinct()
-            ->pluck('usuario_asesor');
+            ->groupBy('usuario_asesor');
+
+        if ($request->has('agency_id') && $request->agency_id) {
+            $query->where('id_agencia', $request->agency_id);
+        }
+
+        $allAdvisors = $query->get();
+        // ... rest of logic needs to be careful because we iterate $allAdvisors but metrics calculation also needs to respect the filter?
+        // Actually, $allAdvisors gives us the list of advisors.
+        // Then inside the loop we calculate metrics for each advisor.
+        // The metrics should likely be for ALL their cases, OR just cases within that agency?
+        // "Rendimiento de asesores por agencia": This usually means "Show me advisors belonging to this agency and their performance".
+        // If an advisor works for multiple agencies (unlikely in this domain?), we might want to filter metrics too.
+        // But usually an advisor is tied to an agency or the cases are.
+        // Let's assume we filter the *list* of advisors based on whether they have cases in that agency.
+        // And the metrics? "Active cases" -> should probably be filtered by agency too if we are looking at "Agency Performance".
+        // Users usually want "How is this advisor performing *in this agency*?".
+        // So I should add filtering to the metrics queries too.
+
+        // Refactored approach:
+        $agencyId = $request->input('agency_id');
 
         $metrics = [];
 
-        foreach ($advisors as $advisor) {
-            // Active Cases count
-            $active = NuevoExpediente::where('usuario_asesor', $advisor)
-                ->whereHas('seguimientos', function($q){
-                    $q->where('id_estado', '!=', 11);
-                })
+        foreach ($allAdvisors as $record) {
+            $advisorName = $record->asesor->name ?? $record->usuario_asesor ?? 'Unknown';
+            $advisorId = $record->usuario_asesor;
+
+            // Common query part
+            $baseQuery = NuevoExpediente::where('usuario_asesor', $advisorId);
+            if ($agencyId) {
+                $baseQuery->where('id_agencia', $agencyId);
+            }
+
+            $total = (clone $baseQuery)->count();
+
+            $active = (clone $baseQuery)
+                ->whereHas('seguimientos', function($q) { $q->where('id_estado', '!=', 11); })
                 ->count();
 
-            // Historical Rejections (using f_retorno_asesores as flag)
-            // A file is considered "Rejected at least once" if it has a f_retorno_asesores date
-            $rejectedCount = NuevoExpediente::where('usuario_asesor', $advisor)
-                ->whereHas('fechas', function($q){
-                     $q->whereNotNull('f_retorno_asesores');
-                })
+            $rejectedCount = (clone $baseQuery)
+                ->whereHas('fechas', function($q) { $q->whereNotNull('f_retorno_asesores'); })
                 ->count();
 
-            // Total Processed (Active + Finalized) for context, optionally
-            $total = NuevoExpediente::where('usuario_asesor', $advisor)->count();
-
-            // Rejection Rate
+             // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
 
             // Success Rate (Clean Cases / Total)
@@ -104,7 +124,8 @@ class DashboardController extends Controller
             $successRate = $total > 0 ? round(($cleanCount / $total) * 100, 1) : 0;
 
             $metrics[] = [
-                'asesor' => $advisor,
+                'asesor' => $advisorName,
+                'advisor_id' => $advisorId,
                 'active_cases' => $active,
                 'rejected_cases' => $rejectedCount,
                 'total_cases' => $total,
@@ -125,15 +146,19 @@ class DashboardController extends Controller
         $offset = ($page - 1) * $perPage;
 
         $items = array_slice($metrics, $offset, $perPage);
-        $total = count($metrics);
+        $totalItems = count($metrics);
 
         return response()->json([
             'data' => $items,
             'current_page' => (int)$page,
             'per_page' => $perPage,
-            'total' => $total,
-            'last_page' => ceil($total / $perPage)
+            'total' => $totalItems,
+            'last_page' => ceil($totalItems / $perPage)
         ]);
+    }
+
+    public function agenciesList() {
+        return response()->json(\App\Models\Agencia::select('id', 'nombre')->orderBy('nombre')->get());
     }
 
     /**
