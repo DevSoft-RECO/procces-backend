@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
             $table->unsignedBigInteger('bufete_id')->nullable()->after('archivo_administrativo');
-            $table->string('recibi_pagare')->nullable()->default(null)->after('bufete_id'); // 'Si', 'No' or null
 
             // Foreign key to bufetes table
             $table->foreign('bufete_id')->references('id')->on('bufetes')->onDelete('set null');
@@ -27,7 +26,7 @@ return new class extends Migration
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
             $table->dropForeign(['bufete_id']);
-            $table->dropColumn(['bufete_id', 'recibi_pagare']);
+            $table->dropColumn(['bufete_id']);
         });
     }
 };
