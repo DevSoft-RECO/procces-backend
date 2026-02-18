@@ -185,7 +185,6 @@ class SolicitudRetiroController extends Controller
                 'id_expediente' => $request->id_expediente,
                 'numero_documento' => $request->numero_documento,
                 'titulo_nombre' => $request->titulo_nombre,
-                'es_manual' => $request->es_manual ?? false,
                 'id_agencia' => $request->input('id_agencia') ?? $user->id_agencia, // Priorizar request, fallback user
                 'id_usuario_solicitante' => $user->id,
                 'tipo_retiro' => $request->tipo_retiro,

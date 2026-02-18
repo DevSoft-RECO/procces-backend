@@ -15,7 +15,6 @@ class SolicitudRetiro extends Model
         'id_expediente',
         'numero_documento',
         'titulo_nombre',
-        'es_manual',
         'id_agencia',
         'id_usuario_solicitante',
         'tipo_retiro',
@@ -23,11 +22,13 @@ class SolicitudRetiro extends Model
         'fecha_solicitud',
         'id_usuario_despacho',
         'fecha_envio',
+        'id_usuario_entrega',
+        'id_agencia_entrega',
+        'evidencia_entrega_path',
         'estado_actual',
     ];
 
     protected $casts = [
-        'es_manual' => 'boolean',
         'fecha_solicitud' => 'datetime',
         'fecha_envio' => 'datetime',
     ];
@@ -50,6 +51,17 @@ class SolicitudRetiro extends Model
     public function despachador()
     {
         return $this->belongsTo(User::class, 'id_usuario_despacho');
+    }
+
+    // Relaciones de Entrega
+    public function entregador()
+    {
+        return $this->belongsTo(User::class, 'id_usuario_entrega');
+    }
+
+    public function agenciaEntrega()
+    {
+        return $this->belongsTo(Agencia::class, 'id_agencia_entrega');
     }
 
     public function documento()
