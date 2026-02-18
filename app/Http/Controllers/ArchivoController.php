@@ -50,12 +50,12 @@ class ArchivoController extends Controller
                     'id_expediente',
                     'observacion_envio',
                     'enviado_a_archivos',
-                    'es_un_pagare',
                     'recibi_garantia_real',
                     'recibi_contrato',
                     'archivado_at',
                     'id_estado',
                     'id_estado_secundario',
+                    'tipo_contrato', // Reemplazo de es_un_pagare
                     'numero_contrato'
                 ])
                 ->orderBy('created_at', 'desc')
@@ -117,7 +117,7 @@ class ArchivoController extends Controller
         }
 
         // SEGURIDAD: Validar que realmente es un contrato antes de dejar marcar "recibido"
-        if ($seguimiento->es_un_pagare !== 'no') {
+        if ($seguimiento->tipo_contrato === 'Pagaré') {
             return response()->json(['success' => false, 'message' => 'Este expediente es un Pagaré, no requiere contrato.'], 400);
         }
 
