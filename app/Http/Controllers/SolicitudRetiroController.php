@@ -232,7 +232,7 @@ class SolicitudRetiroController extends Controller
         // Filtros opcionales: estado
         $estado = $request->input('estado');
 
-        $query = SolicitudRetiro::with(['agencia', 'solicitante', 'documento.tipoDocumento', 'documento.registroPropiedad']);
+        $query = SolicitudRetiro::with(['agencia', 'solicitante', 'documento.tipoDocumento', 'documento.registroPropiedad', 'expedienteHistorico']);
 
         if ($estado !== null) {
             $query->where('estado_actual', $estado);

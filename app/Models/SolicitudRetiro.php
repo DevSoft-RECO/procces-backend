@@ -57,4 +57,11 @@ class SolicitudRetiro extends Model
         // Relación por número de documento (no ID estándar)
         return $this->belongsTo(Documento::class, 'numero_documento', 'numero');
     }
+
+    public function expedienteHistorico()
+    {
+        // Relación por número de documento con Expediente (Histórico)
+        // Usamos numero_documento como clave foránea y local
+        return $this->belongsTo(Expediente::class, 'numero_documento', 'numero_documento');
+    }
 }
