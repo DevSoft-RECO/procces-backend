@@ -51,4 +51,10 @@ class SolicitudRetiro extends Model
     {
         return $this->belongsTo(User::class, 'id_usuario_despacho');
     }
+
+    public function documento()
+    {
+        // Relación por número de documento (no ID estándar)
+        return $this->belongsTo(Documento::class, 'numero_documento', 'numero');
+    }
 }
