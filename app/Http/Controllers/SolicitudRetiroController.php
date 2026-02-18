@@ -31,12 +31,31 @@ class SolicitudRetiroController extends Controller
             ->first();
 
         if (!$expediente) {
+             // FALLBACK: Buscar en Expediente (Historicos)
+             $historico = \App\Models\Expediente::where('numero_documento', $termino)->first();
+
+             if ($historico) {
+                 return response()->json([
+                     'found' => true,
+                     'source' => 'historico',
+                     'data' => [
+                         'numero_documento' => $historico->numero_documento,
+                         'titulo_nombre' => $historico->asociado,
+                         'id_expediente' => null, // No hay ID de nuevo expediente
+                         'es_manual' => false,
+                         'datos_garantia' => $historico->datos_garantia, // Campo clave
+                         'observaciones' => $historico->observacion // Opcional
+                     ]
+                 ]);
+             }
+
+             // Si no existe tampoco en historicos
              // Si no existe el expediente, no hay nada que pedir (Regla estricta solicitada)
              // Aunque el frontend maneja "found: false" para manual, el usuario pidió corregir lógica base.
              // Mantendremos la respuesta de "no encontrado" pero el frontend decidirá si muestra manual o no.
             return response()->json([
                 'found' => false,
-                'message' => 'No se encontró ningún expediente con ese número de documento.',
+                'message' => 'No se encontró ningún expediente con ese número de documento (Ni actual ni histórico).',
                 'data' => [
                     'numero_documento' => $termino,
                     'es_manual' => true
