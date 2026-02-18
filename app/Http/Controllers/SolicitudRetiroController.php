@@ -211,17 +211,20 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
+        // Priorizar ID enviado desde frontend (Auth Store) y luego el del usuario
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+
         // Si el usuario no tiene agencia, retornar error o vacío
-        if (!$user->id_agencia) {
+        if (!$agencyId) {
              return response()->json(['data' => []]);
         }
 
-        $solicitudes = SolicitudRetiro::where('id_agencia', $user->id_agencia)
+        $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
             ->with(['solicitante', 'despachador'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10); // Paginación de 10 elementos
 
-        return response()->json(['data' => $solicitudes]);
+        return response()->json($solicitudes);
     }
 
     /**
