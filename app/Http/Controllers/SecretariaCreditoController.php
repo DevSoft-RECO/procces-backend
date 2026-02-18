@@ -242,15 +242,9 @@ class SecretariaCreditoController extends Controller
     {
         $query = NuevoExpediente::query();
 
-        // Filtrar por el Último estado = 10 (Devuelto por Abogado) OR (Finalizado con es_un_pagare)
+        // Filtrar por el Último estado = 10 (Devuelto por Abogado)
         $query->whereHas('seguimientos', function ($q) {
-            $q->where(function ($sub) {
-                $sub->where('id_estado', 10)
-                    ->orWhere(function ($sub2) {
-                        $sub2->whereIn('id_estado', [1, 4])
-                             ->whereNotNull('es_un_pagare');
-                    });
-            })
+            $q->where('id_estado', 10)
             ->whereRaw('created_at = (
                   SELECT MAX(s2.created_at)
                   FROM seguimiento_expedientes as s2
@@ -373,14 +367,14 @@ public function finalizarProceso(Request $request)
 {
     $request->validate([
         'id' => 'required|exists:nuevos_expedientes,id',
-        'es_pagare' => 'required|in:si,no'
+        'tipo_contrato' => 'required|in:Escritura Pública,Documento Privado,Pagaré'
     ]);
 
     try {
         DB::beginTransaction();
 
         $id = $request->id;
-        $esPagare = $request->es_pagare;
+        $tipoContrato = $request->tipo_contrato;
 
         $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id)
                         ->orderBy('created_at', 'desc')
@@ -390,37 +384,18 @@ public function finalizarProceso(Request $request)
             return response()->json(['success' => false, 'message' => 'Expediente no encontrado.'], 404);
         }
 
-        // --- NUEVA LÓGICA DE DECISIÓN ---
+        // --- LÓGICA SIMPLIFICADA ---
+        // 1. Guardar el tipo de contrato seleccionado
+        $seguimiento->tipo_contrato = $tipoContrato;
 
-        // Si ya viene marcado como "Si" para archivos desde antes,
-        // forzamos la lógica de "no es pagare" para que siga la ruta de archivo.
-        if ($seguimiento->enviado_a_archivos === 'Si') {
-            $esPagare = 'no';
-        }
+        // 2. Establecer estados fijos solicitados
+        $seguimiento->id_estado = 11; // Finalizado
+        $seguimiento->id_estado_secundario = 4; // En Archivo (Buzón)
 
-        $seguimiento->es_un_pagare = $esPagare;
-
-        if ($esPagare === 'si') {
-            // CASO: ES PAGARÉ (Aquí enviado_a_archivos siempre será 'No' por tu lógica de negocio)
-            if ($seguimiento->enviado_a_archivos === 'No') {
-                $seguimiento->id_estado = 11;
-                $seguimiento->id_estado_secundario = 11; // Muere el proceso
-            } else {
-                // Caso preventivo: Si por error fuera 'Si' pero marcaron pagaré
-                $seguimiento->id_estado = 11;
-                $seguimiento->id_estado_secundario = 4;
-            }
-        }
-        else {
-            // CASO: ES CONTRATO o ENVIAR A ARCHIVO DIRECTO
-            $seguimiento->id_estado = 11;
-            $seguimiento->id_estado_secundario = 4; // Activa buzón de archivo
-
-            // Registrar fecha de envío
-            $fechas = \App\Models\SeguimientoFecha::firstOrCreate(['id_expediente' => $id]);
-            $fechas->f_enviado_archivos = now();
-            $fechas->save();
-        }
+        // 3. Registrar fecha de envío a archivos
+        $fechas = \App\Models\SeguimientoFecha::firstOrCreate(['id_expediente' => $id]);
+        $fechas->f_enviado_archivos = now();
+        $fechas->save();
 
         $seguimiento->save();
         DB::commit();
@@ -428,7 +403,7 @@ public function finalizarProceso(Request $request)
         return response()->json([
             'success' => true,
             'message' => 'Proceso finalizado correctamente.',
-            'es_pagare' => $esPagare
+            'tipo_contrato' => $tipoContrato
         ]);
 
     } catch (\Exception $e) {

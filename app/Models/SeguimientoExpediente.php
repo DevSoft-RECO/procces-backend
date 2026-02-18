@@ -20,7 +20,7 @@ class SeguimientoExpediente extends Model
         'archivo_administrativo',
         'observacion_envio',
         'observacion_rechazo',
-        'es_un_pagare',
+        'tipo_contrato',
         'numero_contrato',
         'path_contrato',
         'bufete_id',

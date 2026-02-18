@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
-            $table->enum('es_un_pagare', ['si', 'no'])->nullable()->after('observacion_rechazo');
-            $table->string('numero_contrato')->nullable()->after('es_un_pagare');
+            $table->string('tipo_contrato')->nullable()->after('observacion_rechazo');
+            $table->string('numero_contrato')->nullable()->after('tipo_contrato');
             $table->string('path_contrato')->nullable()->after('numero_contrato');
         });
     }
@@ -24,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
-            $table->dropColumn(['es_un_pagare', 'numero_contrato', 'path_contrato']);
+            $table->dropColumn(['tipo_contrato', 'numero_contrato', 'path_contrato']);
         });
     }
 };
