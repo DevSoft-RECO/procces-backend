@@ -170,4 +170,58 @@ class ConfirmacionDocController extends Controller
             return response()->json(['message' => 'Error al archivar documento: ' . $e->getMessage()], 500);
         }
     }
+    /**
+     * Register a new document from a manual confirmation request.
+     */
+    public function registerDocument(Request $request, $id)
+    {
+        $confirmacion = ConfirmacionDocumento::findOrFail($id);
+
+        if ($confirmacion->documento_id) {
+            return response()->json(['message' => 'Esta solicitud ya tiene un documento asociado.'], 400);
+        }
+
+        $request->validate([
+            'numero' => 'required',
+            'fecha' => 'required|date',
+            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+            'registro_propiedad_id' => 'nullable|exists:registros_propiedad,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $documento = Documento::create([
+                'numero' => $request->numero,
+                'fecha' => $request->fecha,
+                'propietario' => $request->propietario,
+                'autorizador' => $request->autorizador,
+                'no_finca' => $request->no_finca,
+                'folio' => $request->folio,
+                'libro' => $request->libro,
+                'no_dominio' => $request->no_dominio,
+                'referencia' => $request->referencia,
+                'monto_poliza' => $request->monto_poliza,
+                'observacion' => $request->observacion,
+                'tipo_documento_id' => $request->tipo_documento_id,
+                'registro_propiedad_id' => $request->registro_propiedad_id,
+            ]);
+
+            // Associate document with confirmation
+            $confirmacion->documento_id = $documento->id;
+
+            // Update cached fields in confirmation to equal the definitive document fields
+            $confirmacion->tipo_documento = $documento->tipoDocumento->nombre;
+            $confirmacion->registro_propiedad = $documento->registroPropiedad ? $documento->registroPropiedad->nombre : null;
+
+            $confirmacion->save();
+
+            DB::commit();
+
+            return response()->json(['message' => 'Documento registrado y vinculado exitosamente.', 'data' => $documento]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al registrar documento: ' . $e->getMessage()], 500);
+        }
+    }
 }
