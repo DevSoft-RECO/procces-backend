@@ -37,7 +37,7 @@ return new class extends Migration
             $table->string('registro_propiedad')->nullable();
 
             // Campos de la confirmación
-            $table->dateTime('fecha_consulta')->nullable();
+            $table->dateTime('fecha_confirmacion')->nullable();
             $table->enum('confirmacion', ['SI', 'NO'])->nullable();
             $table->text('observacion_confirmacion')->nullable();
 

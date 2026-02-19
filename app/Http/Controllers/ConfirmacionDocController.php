@@ -54,14 +54,14 @@ class ConfirmacionDocController extends Controller
 
     /**
      * Store a confirmation request (User side).
-     * Confirmacion and fecha_consulta are null initially.
+     * Confirmacion and fecha_confirmacion are null initially.
      */
     public function store(Request $request)
     {
         $request->validate([
             'numero' => 'required',
             'fecha' => 'required|date',
-            // No validation for confirmacion/fecha_consulta as they are admin fields
+            // No validation for confirmacion/fecha_confirmacion as they are admin fields
         ]);
 
         try {
@@ -109,7 +109,7 @@ class ConfirmacionDocController extends Controller
             $confirmacion->update([
                 'confirmacion' => $request->confirmacion,
                 'observacion_confirmacion' => $request->observacion_confirmacion,
-                'fecha_consulta' => now(), // Set validation timestamp
+                'fecha_confirmacion' => now(), // Set validation timestamp
             ]);
 
             return response()->json(['message' => 'Documento validado correctamente.', 'data' => $confirmacion]);

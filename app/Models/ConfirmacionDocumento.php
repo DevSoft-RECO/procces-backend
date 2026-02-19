@@ -23,7 +23,7 @@ class ConfirmacionDocumento extends Model
         'observacion',
         'tipo_documento', // String name
         'registro_propiedad', // String name
-        'fecha_consulta',
+        'fecha_confirmacion',
         'confirmacion',
         'observacion_confirmacion',
     ];
