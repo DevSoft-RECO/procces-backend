@@ -246,6 +246,9 @@ class SolicitudRetiroController extends Controller
              // Enviados Definitivos (Historial: Retiro Definitivo y ya no está en estado 1)
              $query->where('tipo_retiro', 'Definitivo')
                    ->where('estado_actual', '!=', 1);
+        } elseif ($estado == 4) {
+             // Por Reingresar (Estado 6 - En Retorno)
+             $query->where('estado_actual', 6);
         } else {
              // Por defecto mostrar pendientes (1)
              $query->where('estado_actual', 1);
@@ -468,10 +471,41 @@ class SolicitudRetiroController extends Controller
             return response()->json(['message' => 'Solo las garantías con retiro Temporal pueden ser reingresadas al archivo.'], 422);
         }
 
-        // Actualizar estado a 0 (Archivado / Regresado)
-        $solicitud->estado_actual = 0;
+        // Validar Estado 4 (Recibido en Agencia)
+        if ($solicitud->estado_actual != 4) {
+            return response()->json(['message' => 'La garantía debe ser recibida en agencia antes de devolverla.'], 422);
+        }
+
+        // Actualizar estado a 6 (En Retorno)
+        $solicitud->estado_actual = 6;
+        $solicitud->fecha_retorno = Carbon::now();
+        $solicitud->id_usuario_retorno = Auth::id();
+        $solicitud->observacion_retorno = $request->input('observacion');
         $solicitud->save();
 
-        return response()->json(['message' => 'Garantía reingresada al archivo exitosamente.', 'data' => $solicitud]);
+        return response()->json(['message' => 'Solicitud de devolución enviada correctamente.', 'data' => $solicitud]);
+    }
+
+    /**
+     * Confirm return to Archive (Status 6 -> 0).
+     */
+    public function confirmReturn(Request $request, $id)
+    {
+        $solicitud = \App\Models\SolicitudRetiro::find($id);
+
+        if (!$solicitud) {
+            return response()->json(['message' => 'Solicitud no encontrada'], 404);
+        }
+
+        if ($solicitud->estado_actual != 6) {
+             return response()->json(['message' => 'La solicitud no está en estado de retorno.'], 422);
+        }
+
+        $solicitud->estado_actual = 0; // Archivado / Finalizado
+        $solicitud->fecha_confirmacion_retorno = Carbon::now();
+        $solicitud->id_usuario_confirmacion_retorno = Auth::id();
+        $solicitud->save();
+
+        return response()->json(['message' => 'Retorno confirmado. Garantía archivada nuevamente.', 'data' => $solicitud]);
     }
 }

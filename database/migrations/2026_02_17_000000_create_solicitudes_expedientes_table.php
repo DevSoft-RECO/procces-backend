@@ -50,7 +50,19 @@ return new class extends Migration
             $table->string('evidencia_entrega_path', 2048)->nullable()->comment('Ruta del archivo de evidencia de entrega');
 
             // Estado: 0=Archivado(Default/En Bodega), 1=Solicitado, 2=Enviado Temporal, 3=Enviado Definitivo
-            $table->integer('estado_actual')->default(1)->comment('0=Archivado, 1=Solicitado, 2=Enviado Temporal, 3=Enviado Definitivo');
+            // 4=Recibido en Agencia, 5=Entregado a Asociado, 6=En Retorno, 7=Retornado
+            $table->integer('estado_actual')->default(1)->comment('See SolicitudRetiroController for states');
+
+            // Campos para retorno
+            $table->dateTime('fecha_retorno')->nullable();
+            $table->unsignedBigInteger('id_usuario_retorno')->nullable()->index();
+            $table->foreign('id_usuario_retorno')->references('id')->on('users');
+
+            $table->text('observacion_retorno')->nullable();
+
+            $table->dateTime('fecha_confirmacion_retorno')->nullable();
+            $table->unsignedBigInteger('id_usuario_confirmacion_retorno')->nullable()->index();
+            $table->foreign('id_usuario_confirmacion_retorno')->references('id')->on('users');
 
             $table->timestamps();
         });
