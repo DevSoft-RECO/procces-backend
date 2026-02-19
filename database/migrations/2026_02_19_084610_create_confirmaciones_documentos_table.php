@@ -40,6 +40,7 @@ return new class extends Migration
             $table->dateTime('fecha_confirmacion')->nullable();
             $table->enum('confirmacion', ['SI', 'NO'])->nullable();
             $table->text('observacion_confirmacion')->nullable();
+            $table->boolean('archivado')->default(false);
 
             $table->timestamps();
         });

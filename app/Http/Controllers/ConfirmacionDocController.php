@@ -109,12 +109,56 @@ class ConfirmacionDocController extends Controller
             $confirmacion->update([
                 'confirmacion' => $request->confirmacion,
                 'observacion_confirmacion' => $request->observacion_confirmacion,
-                'fecha_confirmacion' => now(), // Set validation timestamp
+                'fecha_confirmacion' => now(),
+                'archivado' => true // Auto-archive on validation
             ]);
 
             return response()->json(['message' => 'Documento validado correctamente.', 'data' => $confirmacion]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al validar documento: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * List confirmed results (Requester View).
+     */
+    public function indexResults(Request $request)
+    {
+        $resultados = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+            ->whereNotNull('confirmacion')
+            // All confirmed are shown here
+            ->orderBy('fecha_confirmacion', 'desc')
+            ->get();
+
+        return response()->json(['data' => $resultados]);
+    }
+
+    /**
+     * List validation history (Validator View).
+     */
+    public function indexHistory(Request $request)
+    {
+        // For now, same data. In future, could filter byValidatorUser
+        $historico = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+            ->whereNotNull('confirmacion')
+            ->orderBy('fecha_confirmacion', 'desc')
+            ->get();
+
+        return response()->json(['data' => $historico]);
+    }
+
+    /**
+     * Archive a confirmation result.
+     */
+    public function archive(Request $request, $id)
+    {
+        try {
+            $confirmacion = ConfirmacionDocumento::findOrFail($id);
+            $confirmacion->update(['archivado' => true]);
+
+            return response()->json(['message' => 'Documento archivado correctamente.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al archivar documento: ' . $e->getMessage()], 500);
         }
     }
 }

@@ -175,4 +175,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'store']);
     Route::get('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'index']); // Admin Index
     Route::put('/confirmacion-documentos/{id}', [App\Http\Controllers\ConfirmacionDocController::class, 'update']); // Admin Update
+    Route::get('/confirmacion-documentos/resultados', [App\Http\Controllers\ConfirmacionDocController::class, 'indexResults']);
+    Route::get('/confirmacion-documentos/historico', [App\Http\Controllers\ConfirmacionDocController::class, 'indexHistory']);
+    Route::put('/confirmacion-documentos/{id}/archive', [App\Http\Controllers\ConfirmacionDocController::class, 'archive']);
 });

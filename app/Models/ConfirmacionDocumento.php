@@ -26,6 +26,7 @@ class ConfirmacionDocumento extends Model
         'fecha_confirmacion',
         'confirmacion',
         'observacion_confirmacion',
+        'archivado',
     ];
 
     public function documento()
