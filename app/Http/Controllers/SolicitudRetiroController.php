@@ -205,6 +205,7 @@ class SolicitudRetiroController extends Controller
 
     /**
      * List requests for the Agency History.
+     * EXCLUDES Status 5 (Delivered).
      */
     public function indexAgency(Request $request)
     {
@@ -219,6 +220,7 @@ class SolicitudRetiroController extends Controller
         }
 
         $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
+            ->where('estado_actual', '!=', 5) // Excluir Entregados (Se ven en Buzón Entregas)
             ->with(['solicitante', 'despachador'])
             ->orderBy('created_at', 'desc')
             ->paginate(10); // Paginación de 10 elementos
@@ -402,23 +404,44 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        // Mostrar entregas realizadas por la agencia del usuario (o donde el usuario entregó)
-        // Similar a Pending Delivery, pero con Estado 5
         $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $role = $request->input('role'); // 'local_delivery' | 'external_delivery' | 'request'
 
         if (!$agencyId) {
              return response()->json(['data' => []]);
         }
 
-        $solicitudes = \App\Models\SolicitudRetiro::where('estado_actual', 5)
-            ->where(function($query) use ($agencyId) {
-                // Ver entregas donde la agencia fue parte (Origen o Destino)
-                 $query->where('id_agencia_entrega', $agencyId)
-                       ->orWhere('id_agencia', $agencyId);
-            })
+        $query = \App\Models\SolicitudRetiro::where('estado_actual', 5)
             ->with(['solicitante', 'agencia', 'agenciaEntrega', 'entregador'])
-            ->orderBy('updated_at', 'desc')
-            ->paginate(10);
+            ->orderBy('updated_at', 'desc');
+
+        if ($role === 'local_delivery') {
+            // Creadas por MI agencia Y entregadas por MI agencia
+            $query->where('id_agencia', $agencyId)
+                  ->where('id_agencia_entrega', $agencyId);
+
+        } else if ($role === 'external_delivery') {
+             // Creadas por OTRAS agencias Y entregadas por MI agencia
+             $query->where('id_agencia', '!=', $agencyId)
+                   ->where('id_agencia_entrega', $agencyId);
+
+        } else if ($role === 'delivery') {
+            // General: entregadas por MI agencia (sin importar origen) - Mantenido por compatibilidad
+            $query->where('id_agencia_entrega', $agencyId);
+
+        } else if ($role === 'request') {
+             // Solicitadas por MI agencia (sin importar quien entregó)
+             $query->where('id_agencia', $agencyId);
+
+        } else {
+             // Fallback: ambas
+             $query->where(function($q) use ($agencyId) {
+                 $q->where('id_agencia_entrega', $agencyId)
+                   ->orWhere('id_agencia', $agencyId);
+             });
+        }
+
+        $solicitudes = $query->paginate(10);
 
         return response()->json($solicitudes);
     }
