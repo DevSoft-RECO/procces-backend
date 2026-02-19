@@ -525,4 +525,27 @@ class SolicitudRetiroController extends Controller
 
         return response()->json(['message' => 'Retorno confirmado. Garantía archivada nuevamente.', 'data' => $solicitud]);
     }
+
+    /**
+     * Delete a request (Super Admin only).
+     */
+    public function destroy($id)
+    {
+        $user = Auth::user();
+        $roles = $user->roles_list ?? [];
+
+        if (!in_array('Super Admin', $roles)) {
+            return response()->json(['message' => 'No autorizado. Se requiere rol de Super Admin.'], 403);
+        }
+
+        $solicitud = \App\Models\SolicitudRetiro::findOrFail($id);
+
+        if ($solicitud->estado_actual != 1) {
+            return response()->json(['message' => 'Solo se pueden eliminar solicitudes en estado pendiente.'], 400);
+        }
+
+        $solicitud->delete();
+
+        return response()->json(['message' => 'Solicitud eliminada correctamente.']);
+    }
 }

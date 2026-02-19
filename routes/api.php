@@ -165,6 +165,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/solicitudes-retiro/delivered', [SolicitudRetiroController::class, 'indexDelivered']); // Delivered Mailbox
     Route::get('/solicitudes-retiro/archivo', [SolicitudRetiroController::class, 'indexArchive']); // Restored Route
     Route::post('/solicitudes-retiro/{id}/despachar', [SolicitudRetiroController::class, 'dispatchRequest']); // Restored Route
+    Route::delete('/solicitudes-retiro/{id}', [SolicitudRetiroController::class, 'destroy']); // Delete Route
     Route::post('/solicitudes-retiro/{id}/confirm-receipt', [SolicitudRetiroController::class, 'confirmReceipt']);
     Route::post('/solicitudes-retiro/{id}/deliver', [SolicitudRetiroController::class, 'deliverToAssociate']);
     Route::post('/solicitudes-retiro/{id}/return-archive', [SolicitudRetiroController::class, 'returnToArchive']); // New Route
