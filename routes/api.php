@@ -169,4 +169,10 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-retiro/{id}/deliver', [SolicitudRetiroController::class, 'deliverToAssociate']);
     Route::post('/solicitudes-retiro/{id}/return-archive', [SolicitudRetiroController::class, 'returnToArchive']); // New Route
     Route::apiResource('solicitudes-retiro', SolicitudRetiroController::class);
+
+    // Confirmación de Documentos
+    Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);
+    Route::post('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'store']);
+    Route::get('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'index']); // Admin Index
+    Route::put('/confirmacion-documentos/{id}', [App\Http\Controllers\ConfirmacionDocController::class, 'update']); // Admin Update
 });
