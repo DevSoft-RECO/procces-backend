@@ -159,6 +159,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-retiro/search', [App\Http\Controllers\SolicitudRetiroController::class, 'search']);
     Route::post('/solicitudes-retiro', [App\Http\Controllers\SolicitudRetiroController::class, 'store']);
     Route::get('/solicitudes-retiro/agencia', [App\Http\Controllers\SolicitudRetiroController::class, 'indexAgency']);
+    Route::get('/solicitudes-retiro/incoming', [App\Http\Controllers\SolicitudRetiroController::class, 'indexIncoming']);
     Route::get('/solicitudes-retiro/archivo', [App\Http\Controllers\SolicitudRetiroController::class, 'indexArchive']);
     Route::post('/solicitudes-retiro/{id}/despachar', [App\Http\Controllers\SolicitudRetiroController::class, 'dispatchRequest']);
 });

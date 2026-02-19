@@ -255,6 +255,7 @@ class SolicitudRetiroController extends Controller
     {
         $request->validate([
             'estado' => 'required|in:2,3', // 2=Temporal, 3=Definitivo
+            'id_agencia_entrega' => 'required|exists:agencias,id',
         ]);
 
         $solicitud = SolicitudRetiro::find($id);
@@ -266,8 +267,34 @@ class SolicitudRetiroController extends Controller
         $solicitud->estado_actual = $request->estado;
         $solicitud->id_usuario_despacho = Auth::id();
         $solicitud->fecha_envio = Carbon::now();
+        $solicitud->id_agencia_entrega = $request->id_agencia_entrega;
         $solicitud->save();
 
         return response()->json(['message' => 'Solicitud despachada correctamente', 'data' => $solicitud]);
+    }
+
+    /**
+     * List requests SENT TO the user's agency (Incoming).
+     */
+    public function indexIncoming(Request $request)
+    {
+        $user = Auth::user();
+
+        // Priorizar ID desde request o usar el del usuario
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+
+        if (!$agencyId) {
+            return response()->json(['data' => []]);
+        }
+
+        // Buscar solicitudes donde la agencia de ENTREGA sea la del usuario
+        // Y el estado sea > 1 (Enviado)
+        $solicitudes = SolicitudRetiro::where('id_agencia_entrega', $agencyId)
+            ->whereIn('estado_actual', [2, 3]) // Temporal o Definitivo
+            ->with(['solicitante', 'despachador', 'entregador', 'agencia']) // Entregador puede ser null aun
+            ->orderBy('fecha_envio', 'desc')
+            ->paginate(10);
+
+        return response()->json($solicitudes);
     }
 }
