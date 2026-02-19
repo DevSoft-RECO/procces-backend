@@ -323,4 +323,32 @@ class SolicitudRetiroController extends Controller
 
         return response()->json(['message' => 'Recepción confirmada correctamente', 'data' => $solicitud]);
     }
+    /**
+     * List requests pending delivery to associate (Status 4).
+     * Includes requests created by the agency OR sent to the agency.
+     */
+    public function indexPendingDelivery(Request $request)
+    {
+        $user = Auth::user();
+
+        // Priorizar ID desde request o usar el del usuario
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+
+        if (!$agencyId) {
+            return response()->json(['data' => []]);
+        }
+
+        // Buscar solicitudes (Estado 4) donde la agencia sea ORIGEN o DESTINO
+        // El usuario pidió ver SOLICITADOS por su agencia O ENVIADOS a su agencia.
+        $solicitudes = \App\Models\SolicitudRetiro::where('estado_actual', 4)
+            ->where(function($query) use ($agencyId) {
+                $query->where('id_agencia_entrega', $agencyId)
+                      ->orWhere('id_agencia', $agencyId);
+            })
+            ->with(['solicitante', 'agencia', 'agenciaEntrega'])
+            ->orderBy('updated_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($solicitudes);
+    }
 }
