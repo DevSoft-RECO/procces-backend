@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http; // Added this use statement
 use App\Http\Controllers\BuscarEditarController;
+use App\Http\Controllers\SolicitudRetiroController; // Added missing import
 
 // Asegúrate de que el middleware 'sso' esté registrado en bootstrap/app.php
 Route::middleware('sso')->group(function () {
@@ -156,14 +157,16 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::put('/editar-seguimiento/{id}', [App\Http\Controllers\EditarSeguimientoController::class, 'update']);
 
     // Retiro de Garantías
-    Route::post('/solicitudes-retiro/search', [App\Http\Controllers\SolicitudRetiroController::class, 'search']);
-    Route::post('/solicitudes-retiro', [App\Http\Controllers\SolicitudRetiroController::class, 'store']);
-    Route::get('/solicitudes-retiro/agencia', [App\Http\Controllers\SolicitudRetiroController::class, 'indexAgency']);
-    Route::get('/solicitudes-retiro/incoming', [App\Http\Controllers\SolicitudRetiroController::class, 'indexIncoming']);
-    Route::get('/solicitudes-retiro/pending-delivery', [App\Http\Controllers\SolicitudRetiroController::class, 'indexPendingDelivery']);
-    Route::post('/solicitudes-retiro/{id}/deliver', [App\Http\Controllers\SolicitudRetiroController::class, 'deliverToAssociate']);
-    Route::get('/solicitudes-retiro/delivered', [App\Http\Controllers\SolicitudRetiroController::class, 'indexDelivered']);
-    Route::get('/solicitudes-retiro/archivo', [App\Http\Controllers\SolicitudRetiroController::class, 'indexArchive']);
-    Route::post('/solicitudes-retiro/{id}/despachar', [App\Http\Controllers\SolicitudRetiroController::class, 'dispatchRequest']);
-    Route::post('/solicitudes-retiro/{id}/confirm-receipt', [App\Http\Controllers\SolicitudRetiroController::class, 'confirmReceipt']);
+    Route::post('/solicitudes-retiro/search', [SolicitudRetiroController::class, 'search']);
+    Route::post('/solicitudes-retiro', [SolicitudRetiroController::class, 'store']); // Solicitudes Retiro
+    Route::get('/solicitudes-retiro/agencia', [SolicitudRetiroController::class, 'indexAgency']);
+    Route::get('/solicitudes-retiro/incoming', [SolicitudRetiroController::class, 'indexIncoming']);
+    Route::get('/solicitudes-retiro/pending-delivery', [SolicitudRetiroController::class, 'indexPendingDelivery']);
+    Route::get('/solicitudes-retiro/delivered', [SolicitudRetiroController::class, 'indexDelivered']); // Delivered Mailbox
+    Route::get('/solicitudes-retiro/archivo', [SolicitudRetiroController::class, 'indexArchive']); // Restored Route
+    Route::post('/solicitudes-retiro/{id}/despachar', [SolicitudRetiroController::class, 'dispatchRequest']); // Restored Route
+    Route::post('/solicitudes-retiro/{id}/confirm-receipt', [SolicitudRetiroController::class, 'confirmReceipt']);
+    Route::post('/solicitudes-retiro/{id}/deliver', [SolicitudRetiroController::class, 'deliverToAssociate']);
+    Route::post('/solicitudes-retiro/{id}/return-archive', [SolicitudRetiroController::class, 'returnToArchive']); // New Route
+    Route::apiResource('solicitudes-retiro', SolicitudRetiroController::class);
 });

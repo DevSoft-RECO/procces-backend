@@ -220,7 +220,7 @@ class SolicitudRetiroController extends Controller
         }
 
         $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
-            ->where('estado_actual', '!=', 5) // Excluir Entregados (Se ven en Buzón Entregas)
+            // ->where('estado_actual', '!=', 5) // Excluir Entregados REMOVED: User wants full history
             ->with(['solicitante', 'despachador'])
             ->orderBy('created_at', 'desc')
             ->paginate(10); // Paginación de 10 elementos
@@ -233,19 +233,25 @@ class SolicitudRetiroController extends Controller
      */
     public function indexArchive(Request $request)
     {
-        // Filtros opcionales: estado
+        // Filtros: 1=Pendientes, 2=Enviados Temporales, 3=Enviados Definitivos
         $estado = $request->input('estado');
 
         $query = SolicitudRetiro::with(['agencia', 'solicitante', 'documento.tipoDocumento', 'documento.registroPropiedad', 'expedienteHistorico']);
 
-        if ($estado !== null) {
-            $query->where('estado_actual', $estado);
+        if ($estado == 2) {
+             // Enviados Temporales (Historial: Retiro Temporal y ya no está en estado 1)
+             $query->where('tipo_retiro', 'Temporal')
+                   ->where('estado_actual', '!=', 1);
+        } elseif ($estado == 3) {
+             // Enviados Definitivos (Historial: Retiro Definitivo y ya no está en estado 1)
+             $query->where('tipo_retiro', 'Definitivo')
+                   ->where('estado_actual', '!=', 1);
         } else {
              // Por defecto mostrar pendientes (1)
              $query->where('estado_actual', 1);
         }
 
-        $solicitudes = $query->orderBy('fecha_solicitud', 'asc')->get();
+        $solicitudes = $query->orderBy('updated_at', 'desc')->get();
 
         return response()->json(['data' => $solicitudes]);
     }
@@ -444,5 +450,28 @@ class SolicitudRetiroController extends Controller
         $solicitudes = $query->paginate(10);
 
         return response()->json($solicitudes);
+    }
+
+    /**
+     * Return a Temporal request to Archive (Status 0).
+     */
+    public function returnToArchive(Request $request, $id)
+    {
+        $solicitud = \App\Models\SolicitudRetiro::find($id);
+
+        if (!$solicitud) {
+            return response()->json(['message' => 'Solicitud no encontrada'], 404);
+        }
+
+        // Solo permitir si es Temporal
+        if ($solicitud->tipo_retiro !== 'Temporal') {
+            return response()->json(['message' => 'Solo las garantías con retiro Temporal pueden ser reingresadas al archivo.'], 422);
+        }
+
+        // Actualizar estado a 0 (Archivado / Regresado)
+        $solicitud->estado_actual = 0;
+        $solicitud->save();
+
+        return response()->json(['message' => 'Garantía reingresada al archivo exitosamente.', 'data' => $solicitud]);
     }
 }
