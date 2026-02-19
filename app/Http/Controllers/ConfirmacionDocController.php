@@ -185,7 +185,7 @@ class ConfirmacionDocController extends Controller
             'numero' => 'required',
             'fecha' => 'required|date',
             'tipo_documento_id' => 'required|exists:tipo_documentos,id',
-            'registro_propiedad_id' => 'nullable|exists:registros_propiedad,id',
+            'registro_propiedad_id' => 'nullable|exists:registro_propiedads,id',
         ]);
 
         try {
