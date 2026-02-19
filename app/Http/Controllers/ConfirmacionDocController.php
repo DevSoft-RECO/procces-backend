@@ -128,9 +128,8 @@ class ConfirmacionDocController extends Controller
     public function indexResults(Request $request)
     {
         $query = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
-            ->whereNotNull('confirmacion')
-            // All confirmed are shown here
-            ->orderBy('fecha_confirmacion', 'desc');
+            // Include pending requests too, ordered by date
+            ->orderBy('created_at', 'desc');
 
         // Filter by user unless Super Admin
         $user = $request->user();
