@@ -239,11 +239,12 @@ class SolicitudRetiroController extends Controller
         $query = SolicitudRetiro::with(['agencia', 'solicitante', 'documento.tipoDocumento', 'documento.registroPropiedad', 'expedienteHistorico']);
 
         if ($estado == 2) {
-             // Enviados Temporales (Historial: Retiro Temporal y ya no está en estado 1)
+             // Enviados Temporales (Historial: Retiro Temporal y SOLO estado 2 o 4 o 5, NO 6)
+             // Ajuste: El usuario no quiere ver los "En Retorno" (6) aquí.
              $query->where('tipo_retiro', 'Temporal')
-                   ->where('estado_actual', '!=', 1);
+                   ->whereIn('estado_actual', [2, 4, 5]); // Enviado, Recibido, Entregado (Pero no Retorno)
         } elseif ($estado == 3) {
-             // Enviados Definitivos (Historial: Retiro Definitivo y ya no está en estado 1)
+             // Enviados Definitivos
              $query->where('tipo_retiro', 'Definitivo')
                    ->where('estado_actual', '!=', 1);
         } elseif ($estado == 4) {
