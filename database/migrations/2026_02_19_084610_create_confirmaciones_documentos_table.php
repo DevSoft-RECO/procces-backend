@@ -17,6 +17,7 @@ return new class extends Migration
             // Relación opcional con documento existente.
             // Si es un documento "inventado" o no existente, será null.
             $table->foreignId('documento_id')->nullable()->constrained('documentos')->nullOnDelete();
+            $table->unsignedBigInteger('user_id')->nullable(); // Usuario que solicita
 
             // Campos del documento (duplicados para el registro histórico de lo que se validó)
             $table->string('numero');

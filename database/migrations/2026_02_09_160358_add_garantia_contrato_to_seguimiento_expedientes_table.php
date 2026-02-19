@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('seguimiento_expedientes', function (Blueprint $table) {
-            $table->string('recibi_garantia_real')->nullable()->default(null)->after('recibi_pagare');
+            $table->string('recibi_garantia_real')->nullable()->default(null)->after('bufete_id');
             $table->string('recibi_contrato')->nullable()->default(null)->after('recibi_garantia_real');
         });
     }

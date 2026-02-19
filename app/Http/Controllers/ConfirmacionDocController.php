@@ -67,8 +67,11 @@ class ConfirmacionDocController extends Controller
         try {
             DB::beginTransaction();
 
-            // Create with pending status (null fields)
-            $confirmacion = ConfirmacionDocumento::create($request->all());
+            // Create with pending status (null fields) and assign to current user
+            $data = $request->all();
+            $data['user_id'] = $request->user()->id;
+
+            $confirmacion = ConfirmacionDocumento::create($data);
 
             DB::commit();
 
@@ -124,11 +127,18 @@ class ConfirmacionDocController extends Controller
      */
     public function indexResults(Request $request)
     {
-        $resultados = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+        $query = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
             ->whereNotNull('confirmacion')
             // All confirmed are shown here
-            ->orderBy('fecha_confirmacion', 'desc')
-            ->get();
+            ->orderBy('fecha_confirmacion', 'desc');
+
+        // Filter by user unless Super Admin
+        $user = $request->user();
+        if (!$user || !in_array('Super Admin', $user->roles_list ?? [])) {
+            $query->where('user_id', $user->id);
+        }
+
+        $resultados = $query->get();
 
         return response()->json(['data' => $resultados]);
     }

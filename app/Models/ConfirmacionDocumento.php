@@ -10,6 +10,7 @@ class ConfirmacionDocumento extends Model
 
     protected $fillable = [
         'documento_id',
+        'user_id',
         'numero',
         'fecha',
         'propietario',
