@@ -33,7 +33,7 @@ class ConfirmacionDocController extends Controller
                 'data' => [
                     'id' => $documento->id,
                     'numero' => $documento->numero,
-                    'fecha' => $documento->fecha,
+                    'fecha' => date('Y-m-d', strtotime($documento->fecha)), // Format date for input
                     'propietario' => $documento->propietario,
                     'autorizador' => $documento->autorizador,
                     'no_finca' => $documento->no_finca,
@@ -101,7 +101,6 @@ class ConfirmacionDocController extends Controller
         $request->validate([
             'confirmacion' => 'required|in:SI,NO',
             'observacion_confirmacion' => 'nullable|string',
-            'respuesta' => 'nullable|string',
         ]);
 
         try {
@@ -110,7 +109,6 @@ class ConfirmacionDocController extends Controller
             $confirmacion->update([
                 'confirmacion' => $request->confirmacion,
                 'observacion_confirmacion' => $request->observacion_confirmacion,
-                'respuesta' => $request->respuesta,
                 'fecha_consulta' => now(), // Set validation timestamp
             ]);
 
