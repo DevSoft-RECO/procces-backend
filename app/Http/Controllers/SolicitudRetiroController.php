@@ -250,6 +250,22 @@ class SolicitudRetiroController extends Controller
         } elseif ($estado == 4) {
              // Por Reingresar (Estado 6 - En Retorno)
              $query->where('estado_actual', 6);
+        } elseif ($estado == 5) {
+             // Histórico Temporal (Todo lo que salió como Temporal + Retornados 0)
+             $query->where('tipo_retiro', 'Temporal')
+                   ->where(function($q) {
+                       $q->where('estado_actual', '>=', 2)
+                         ->orWhere('estado_actual', 0);
+                   })
+                   ->orderBy('updated_at', 'desc');
+        } elseif ($estado == 6) {
+             // Histórico Definitivo
+             $query->where('tipo_retiro', 'Definitivo')
+                   ->where(function($q) {
+                       $q->where('estado_actual', '>=', 2)
+                         ->orWhere('estado_actual', 0);
+                   })
+                   ->orderBy('updated_at', 'desc');
         } else {
              // Por defecto mostrar pendientes (1)
              $query->where('estado_actual', 1);
