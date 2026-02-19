@@ -297,4 +297,30 @@ class SolicitudRetiroController extends Controller
 
         return response()->json($solicitudes);
     }
+    /**
+     * Confirm physical receipt of the guarantee (Status -> 4).
+     */
+    public function confirmReceipt(Request $request, $id)
+    {
+        $solicitud = SolicitudRetiro::find($id);
+
+        if (!$solicitud) {
+            return response()->json(['message' => 'Solicitud no encontrada'], 404);
+        }
+
+        // Validar que esté en estado "Enviado" (2 o 3)
+        if (!in_array($solicitud->estado_actual, [2, 3])) {
+            return response()->json(['message' => 'La solicitud no está en estado de envío válido para recepción.'], 422);
+        }
+
+        // Actualizar estado a 4 (Aceptado/Recibido)
+        $solicitud->estado_actual = 4;
+
+        // NOTA: Se solicitó NO registrar usuario de entrega aún, se hará en paso posterior.
+        // $solicitud->id_usuario_entrega = Auth::id();
+
+        $solicitud->save();
+
+        return response()->json(['message' => 'Recepción confirmada correctamente', 'data' => $solicitud]);
+    }
 }
