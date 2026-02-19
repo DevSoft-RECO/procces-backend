@@ -351,4 +351,75 @@ class SolicitudRetiroController extends Controller
 
         return response()->json($solicitudes);
     }
+
+    /**
+     * Mark request as Delivered to Associate (Status 5).
+     * Uploads evidence file.
+     */
+    public function deliverToAssociate(Request $request, $id)
+    {
+        $request->validate([
+            'evidencia' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // Max 5MB
+        ]);
+
+        $solicitud = \App\Models\SolicitudRetiro::find($id);
+
+        if (!$solicitud) {
+            return response()->json(['message' => 'Solicitud no encontrada'], 404);
+        }
+
+        // Validar Estado 4
+        if ($solicitud->estado_actual != 4) {
+            return response()->json(['message' => 'La solicitud no está en estado "Recibido" para entrega.'], 422);
+        }
+
+        try {
+            if ($request->hasFile('evidencia')) {
+                $file = $request->file('evidencia');
+                $filename = 'entrega_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
+                // Guardar en public/uploads/evidencia
+                $file->move(public_path('uploads/evidencia'), $filename);
+
+                $solicitud->evidencia_entrega_path = 'uploads/evidencia/' . $filename;
+            }
+
+            $solicitud->estado_actual = 5; // Entregado
+            $solicitud->id_usuario_entrega = Auth::id(); // Usuario que hace la entrega
+            // updated_at servirá como fecha de entrega
+            $solicitud->save();
+
+            return response()->json(['message' => 'Entrega finalizada correctamente', 'data' => $solicitud]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al subir evidencia: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * List delivered requests (Status 5).
+     */
+    public function indexDelivered(Request $request)
+    {
+        $user = Auth::user();
+
+        // Mostrar entregas realizadas por la agencia del usuario (o donde el usuario entregó)
+        // Similar a Pending Delivery, pero con Estado 5
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+
+        if (!$agencyId) {
+             return response()->json(['data' => []]);
+        }
+
+        $solicitudes = \App\Models\SolicitudRetiro::where('estado_actual', 5)
+            ->where(function($query) use ($agencyId) {
+                // Ver entregas donde la agencia fue parte (Origen o Destino)
+                 $query->where('id_agencia_entrega', $agencyId)
+                       ->orWhere('id_agencia', $agencyId);
+            })
+            ->with(['solicitante', 'agencia', 'agenciaEntrega', 'entregador'])
+            ->orderBy('updated_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($solicitudes);
+    }
 }

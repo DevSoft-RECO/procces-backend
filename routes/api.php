@@ -161,6 +161,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/solicitudes-retiro/agencia', [App\Http\Controllers\SolicitudRetiroController::class, 'indexAgency']);
     Route::get('/solicitudes-retiro/incoming', [App\Http\Controllers\SolicitudRetiroController::class, 'indexIncoming']);
     Route::get('/solicitudes-retiro/pending-delivery', [App\Http\Controllers\SolicitudRetiroController::class, 'indexPendingDelivery']);
+    Route::post('/solicitudes-retiro/{id}/deliver', [App\Http\Controllers\SolicitudRetiroController::class, 'deliverToAssociate']);
+    Route::get('/solicitudes-retiro/delivered', [App\Http\Controllers\SolicitudRetiroController::class, 'indexDelivered']);
     Route::get('/solicitudes-retiro/archivo', [App\Http\Controllers\SolicitudRetiroController::class, 'indexArchive']);
     Route::post('/solicitudes-retiro/{id}/despachar', [App\Http\Controllers\SolicitudRetiroController::class, 'dispatchRequest']);
     Route::post('/solicitudes-retiro/{id}/confirm-receipt', [App\Http\Controllers\SolicitudRetiroController::class, 'confirmReceipt']);
