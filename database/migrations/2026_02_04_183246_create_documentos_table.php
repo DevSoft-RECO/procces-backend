@@ -37,6 +37,8 @@ return new class extends Migration
             $table->unsignedBigInteger('registro_propiedad_id')->nullable()->index();
             $table->foreign('registro_propiedad_id')->references('id')->on('registro_propiedads')->nullOnDelete();
 
+            $table->enum('estado', ['activo', 'temporal', 'definitivo'])->default('activo');
+
             $table->timestamps();
         });
     }
