@@ -14,6 +14,7 @@ class SolicitudRetiro extends Model
     protected $fillable = [
         'id_expediente',
         'numero_documento',
+        'fecha_documento',
         'id_documento',
         'titulo_nombre',
         'id_agencia',

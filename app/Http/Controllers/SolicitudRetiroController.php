@@ -193,6 +193,7 @@ class SolicitudRetiroController extends Controller
             $solicitud = SolicitudRetiro::create([
                 'id_expediente' => $request->id_expediente,
                 'numero_documento' => $request->numero_documento,
+                'fecha_documento' => $request->fecha_documento, // Nuevo campo
                 'id_documento' => $documentoId,
                 'titulo_nombre' => $request->titulo_nombre,
                 'id_agencia' => $request->input('id_agencia') ?? $user->id_agencia, // Priorizar request, fallback user

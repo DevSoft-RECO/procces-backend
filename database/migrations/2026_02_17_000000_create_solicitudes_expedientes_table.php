@@ -21,6 +21,7 @@ return new class extends Migration
             // Datos del documento (Redundancia o Manual)
             $table->string('numero_documento', 50)->nullable();
             $table->string('titulo_nombre', 255)->nullable();
+            $table->dateTime('fecha_documento')->nullable();
 
             // Link to the registered physical document for historical/manual cases
             $table->unsignedBigInteger('id_documento')->nullable()->index();
