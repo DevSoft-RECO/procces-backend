@@ -160,6 +160,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-retiro/search', [SolicitudRetiroController::class, 'search']);
     Route::post('/solicitudes-retiro', [SolicitudRetiroController::class, 'store']); // Solicitudes Retiro
     Route::get('/solicitudes-retiro/agencia', [SolicitudRetiroController::class, 'indexAgency']);
+    Route::get('/solicitudes-retiro/agencia/historico', [SolicitudRetiroController::class, 'indexAgencyHistory']);
     Route::get('/solicitudes-retiro/incoming', [SolicitudRetiroController::class, 'indexIncoming']);
     Route::get('/solicitudes-retiro/pending-delivery', [SolicitudRetiroController::class, 'indexPendingDelivery']);
     Route::get('/solicitudes-retiro/delivered', [SolicitudRetiroController::class, 'indexDelivered']); // Delivered Mailbox

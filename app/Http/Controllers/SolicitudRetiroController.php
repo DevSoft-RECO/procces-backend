@@ -214,8 +214,8 @@ class SolicitudRetiroController extends Controller
     }
 
     /**
-     * List requests for the Agency History.
-     * EXCLUDES Status 5 (Delivered).
+     * List ACTIVE requests for the Agency.
+     * EXCLUDES Status 0 (Archived/Finalized).
      */
     public function indexAgency(Request $request)
     {
@@ -230,10 +230,33 @@ class SolicitudRetiroController extends Controller
         }
 
         $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
-            // ->where('estado_actual', '!=', 5) // Excluir Entregados REMOVED: User wants full history
+            ->where('estado_actual', '!=', 0) // Excluir Archivados/Finalizados
             ->with(['solicitante', 'despachador'])
             ->orderBy('created_at', 'desc')
             ->paginate(10); // Paginación de 10 elementos
+
+        return response()->json($solicitudes);
+    }
+
+    /**
+     * List HISTORICAL (Archived/Finalized) requests for the Agency.
+     * ONLY INCLUDES Status 0.
+     */
+    public function indexAgencyHistory(Request $request)
+    {
+        $user = Auth::user();
+
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+
+        if (!$agencyId) {
+             return response()->json(['data' => []]);
+        }
+
+        $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
+            ->where('estado_actual', 0) // Solo Archivados/Finalizados
+            ->with(['solicitante', 'despachador'])
+            ->orderBy('updated_at', 'desc') // Ordenar por fecha de finalización
+            ->paginate(10);
 
         return response()->json($solicitudes);
     }
