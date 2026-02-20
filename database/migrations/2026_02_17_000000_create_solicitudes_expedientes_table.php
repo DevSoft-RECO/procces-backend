@@ -22,6 +22,10 @@ return new class extends Migration
             $table->string('numero_documento', 50)->nullable();
             $table->string('titulo_nombre', 255)->nullable();
 
+            // Link to the registered physical document for historical/manual cases
+            $table->unsignedBigInteger('id_documento')->nullable()->index();
+            $table->foreign('id_documento')->references('id')->on('documentos');
+
 
             // Solicitud
             $table->unsignedBigInteger('id_agencia')->index();

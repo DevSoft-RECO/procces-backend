@@ -298,6 +298,16 @@ class SolicitudRetiroController extends Controller
         $solicitud->id_agencia_entrega = $request->id_agencia_entrega;
         $solicitud->save();
 
+        // Update document state if it's a registered historical document
+        if ($solicitud->id_documento) {
+            $documento = \App\Models\Documento::find($solicitud->id_documento);
+            if ($documento) {
+                // estado: 2=Temporal -> 'temporal', 3=Definitivo -> 'definitivo'
+                $documento->estado = ($request->estado == 3) ? 'definitivo' : 'temporal';
+                $documento->save();
+            }
+        }
+
         return response()->json(['message' => 'Solicitud despachada correctamente', 'data' => $solicitud]);
     }
 
@@ -335,11 +345,10 @@ class SolicitudRetiroController extends Controller
             $documento = \App\Models\Documento::create($validated);
 
             // Update the Solicitud to point to this new document number
-            // so the relations correctly find the document now.
-            if ($solicitud->numero_documento !== $documento->numero) {
-                $solicitud->numero_documento = $documento->numero;
-                $solicitud->save();
-            }
+            // and save its ID for state tracking.
+            $solicitud->numero_documento = $documento->numero;
+            $solicitud->id_documento = $documento->id;
+            $solicitud->save();
 
             DB::commit();
 
@@ -575,6 +584,15 @@ class SolicitudRetiroController extends Controller
         $solicitud->fecha_confirmacion_retorno = Carbon::now();
         $solicitud->id_usuario_confirmacion_retorno = Auth::id();
         $solicitud->save();
+
+        // Update document state back to active since it returned
+        if ($solicitud->id_documento) {
+            $documento = \App\Models\Documento::find($solicitud->id_documento);
+            if ($documento) {
+                $documento->estado = 'activo';
+                $documento->save();
+            }
+        }
 
         return response()->json(['message' => 'Retorno confirmado. Garantía archivada nuevamente.', 'data' => $solicitud]);
     }

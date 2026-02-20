@@ -14,6 +14,7 @@ class SolicitudRetiro extends Model
     protected $fillable = [
         'id_expediente',
         'numero_documento',
+        'id_documento',
         'titulo_nombre',
         'id_agencia',
         'id_usuario_solicitante',
@@ -68,6 +69,12 @@ class SolicitudRetiro extends Model
     {
         // Relación por número de documento (no ID estándar)
         return $this->belongsTo(Documento::class, 'numero_documento', 'numero');
+    }
+
+    public function documentoRegistrado()
+    {
+        // Relación exacta por ID para documentos registrados en este flujo
+        return $this->belongsTo(Documento::class, 'id_documento');
     }
 
     public function expedienteHistorico()
