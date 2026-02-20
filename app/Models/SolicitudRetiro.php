@@ -82,6 +82,6 @@ class SolicitudRetiro extends Model
     public function expedienteHistorico()
     {
         // Relación por ID autoincremental de la tabla expedientes
-        return $this->belongsTo(Expediente::class, 'id_expediente_historico');
+        return $this->belongsTo(Expediente::class, 'id_expediente_historico', 'id');
     }
 }
