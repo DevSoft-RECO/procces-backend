@@ -25,6 +25,7 @@ class Documento extends Model
         'observacion',
         'tipo_documento_id',
         'registro_propiedad_id',
+        'estado',
     ];
 
     /**

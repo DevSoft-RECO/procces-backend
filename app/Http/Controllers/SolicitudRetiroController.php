@@ -302,6 +302,59 @@ class SolicitudRetiroController extends Controller
     }
 
     /**
+     * Register a physical document for a historical withdrawal request.
+     */
+    public function registerDocument(Request $request, $id)
+    {
+        $solicitud = SolicitudRetiro::findOrFail($id);
+
+        if ($solicitud->id_expediente) {
+            return response()->json(['message' => 'Esta solicitud ya pertenece a un expediente del sistema.'], 422);
+        }
+
+        $validated = $request->validate([
+            'numero' => 'required',
+            'fecha' => 'required|date',
+            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+            'registro_propiedad_id' => 'nullable|exists:registro_propiedads,id',
+            'propietario' => 'nullable|string',
+            'autorizador' => 'nullable|string',
+            'no_finca' => 'nullable|string',
+            'folio' => 'nullable|string',
+            'libro' => 'nullable|string',
+            'no_dominio' => 'nullable|string',
+            'referencia' => 'nullable|string',
+            'monto_poliza' => 'nullable|numeric',
+            'observacion' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Create the document with the number provided by the user
+            $documento = \App\Models\Documento::create($validated);
+
+            // Update the Solicitud to point to this new document number
+            // so the relations correctly find the document now.
+            if ($solicitud->numero_documento !== $documento->numero) {
+                $solicitud->numero_documento = $documento->numero;
+                $solicitud->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Documento registrado exitosamente.',
+                'data' => $documento
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al registrar el documento: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * List requests SENT TO the user's agency (Incoming).
      */
     public function indexIncoming(Request $request)
