@@ -42,6 +42,7 @@ class SolicitudRetiroController extends Controller
                          'numero_documento' => $historico->numero_documento,
                          'titulo_nombre' => $historico->asociado,
                          'id_expediente' => null, // No hay ID de nuevo expediente
+                         'id_expediente_historico' => $historico->id, // Agregar ID historico
                          'es_manual' => false,
                          'datos_garantia' => $historico->datos_garantia, // Campo clave
                          'observaciones' => $historico->observacion // Opcional
@@ -119,6 +120,7 @@ class SolicitudRetiroController extends Controller
             'justificacion' => 'required|string',
             'es_manual' => 'boolean',
             'id_expediente' => 'nullable|exists:nuevos_expedientes,id',
+            'id_expediente_historico' => 'nullable|exists:expedientes,id',
             'titulo_nombre' => 'required|string',
         ]);
 
@@ -192,6 +194,7 @@ class SolicitudRetiroController extends Controller
 
             $solicitud = SolicitudRetiro::create([
                 'id_expediente' => $request->id_expediente,
+                'id_expediente_historico' => $request->id_expediente_historico,
                 'numero_documento' => $request->numero_documento,
                 'fecha_documento' => $request->fecha_documento, // Nuevo campo
                 'id_documento' => $documentoId,
@@ -232,7 +235,7 @@ class SolicitudRetiroController extends Controller
 
         $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
             ->whereNotIn('estado_actual', [0, 5]) // Excluir Archivados/Finalizados y Entregados
-            ->with(['solicitante', 'despachador'])
+            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
             ->orderBy('created_at', 'desc')
             ->paginate(10); // Paginación de 10 elementos
 
@@ -255,7 +258,7 @@ class SolicitudRetiroController extends Controller
 
         $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
             ->whereIn('estado_actual', [0, 5]) // Solo Archivados/Finalizados y Entregados
-            ->with(['solicitante', 'despachador'])
+            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
             ->orderBy('updated_at', 'desc') // Ordenar por fecha de finalización
             ->paginate(10);
 
@@ -415,7 +418,7 @@ class SolicitudRetiroController extends Controller
         // Y el estado sea > 1 (Enviado)
         $solicitudes = SolicitudRetiro::where('id_agencia_entrega', $agencyId)
             ->whereIn('estado_actual', [2, 3]) // Temporal o Definitivo
-            ->with(['solicitante', 'despachador', 'entregador', 'agencia']) // Entregador puede ser null aun
+            ->with(['solicitante', 'despachador', 'entregador', 'agencia', 'documento', 'expedienteHistorico']) // Entregador puede ser null aun
             ->orderBy('fecha_envio', 'desc')
             ->paginate(10);
 

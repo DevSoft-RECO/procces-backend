@@ -17,7 +17,9 @@ return new class extends Migration
             // Relación opcional con expediente existente
             $table->unsignedBigInteger('id_expediente')->nullable()->index();
             $table->foreign('id_expediente')->references('id')->on('nuevos_expedientes')->nullOnDelete();
-
+            // Link al expediente historico
+            $table->unsignedBigInteger('id_expediente_historico')->nullable()->index();
+            $table->foreign('id_expediente_historico')->references('id')->on('expedientes')->nullOnDelete();
             // Datos del documento (Redundancia o Manual)
             $table->string('numero_documento', 50)->nullable();
             $table->string('titulo_nombre', 255)->nullable();

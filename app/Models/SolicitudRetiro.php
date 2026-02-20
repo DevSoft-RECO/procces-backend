@@ -13,6 +13,7 @@ class SolicitudRetiro extends Model
 
     protected $fillable = [
         'id_expediente',
+        'id_expediente_historico',
         'numero_documento',
         'fecha_documento',
         'id_documento',
@@ -80,8 +81,7 @@ class SolicitudRetiro extends Model
 
     public function expedienteHistorico()
     {
-        // Relación por número de documento con Expediente (Histórico)
-        // Usamos numero_documento como clave foránea y local
-        return $this->belongsTo(Expediente::class, 'numero_documento', 'numero_documento');
+        // Relación por ID autoincremental de la tabla expedientes
+        return $this->belongsTo(Expediente::class, 'id_expediente_historico');
     }
 }
