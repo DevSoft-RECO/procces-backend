@@ -218,6 +218,12 @@ public function addDocumento(Request $request, $id)
         if ($docId) {
             $documento = \App\Models\Documento::findOrFail($docId);
 
+            // RESTRICCIÓN: Solo se pueden asociar documentos ACTIVOS (estado = 'Activo')
+            if ($documento->estado !== 'activo') {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'El documento ha sido retirado temporal/definitivamente o está inactivo, por lo tanto no puede ser asociado.'], 422);
+            }
+
             // VALIDACIÓN DE EDICIÓN:
             // Permitir si:
             // 1. Estado es 2 (Retornado)
