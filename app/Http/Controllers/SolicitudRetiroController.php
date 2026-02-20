@@ -181,9 +181,19 @@ class SolicitudRetiroController extends Controller
         try {
             DB::beginTransaction();
 
+            // Buscar el documento real para amarrar el ID físico
+            $documentoId = null;
+            if ($request->numero_documento) {
+                $doc = \App\Models\Documento::where('numero', $request->numero_documento)->first();
+                if ($doc) {
+                    $documentoId = $doc->id;
+                }
+            }
+
             $solicitud = SolicitudRetiro::create([
                 'id_expediente' => $request->id_expediente,
                 'numero_documento' => $request->numero_documento,
+                'id_documento' => $documentoId,
                 'titulo_nombre' => $request->titulo_nombre,
                 'id_agencia' => $request->input('id_agencia') ?? $user->id_agencia, // Priorizar request, fallback user
                 'id_usuario_solicitante' => $user->id,
@@ -298,7 +308,7 @@ class SolicitudRetiroController extends Controller
         $solicitud->id_agencia_entrega = $request->id_agencia_entrega;
         $solicitud->save();
 
-        // Update document state if it's a registered historical document
+        // Update document state for both system and registered historical documents
         if ($solicitud->id_documento) {
             $documento = \App\Models\Documento::find($solicitud->id_documento);
             if ($documento) {
