@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\SolicitudConfirmacion;
 
+use App\Http\Controllers\Controller;
 use App\Models\ConfirmacionDocumento;
 use App\Models\Documento;
 use Illuminate\Http\Request;
@@ -21,35 +22,37 @@ class ConfirmacionDocController extends Controller
             return response()->json(['message' => 'Número y fecha son requeridos.'], 400);
         }
 
-        $documento = Documento::with(['tipoDocumento', 'registroPropiedad'])
+        $documentos = Documento::with(['tipoDocumento', 'registroPropiedad'])
             ->where('numero', $numero)
             ->whereDate('fecha', $fecha)
-            ->first();
+            ->get();
 
-        if ($documento) {
-            // Transform to match the structure expected by frontend even if not fully confirmed yet
+        if ($documentos->count() > 0) {
             return response()->json([
                 'found' => true,
-                'data' => [
-                    'id' => $documento->id,
-                    'numero' => $documento->numero,
-                    'fecha' => date('Y-m-d', strtotime($documento->fecha)), // Format date for input
-                    'propietario' => $documento->propietario,
-                    'autorizador' => $documento->autorizador,
-                    'no_finca' => $documento->no_finca,
-                    'folio' => $documento->folio,
-                    'libro' => $documento->libro,
-                    'no_dominio' => $documento->no_dominio,
-                    'referencia' => $documento->referencia,
-                    'monto_poliza' => $documento->monto_poliza,
-                    'observacion' => $documento->observacion,
-                    'tipo_documento' => $documento->tipoDocumento?->nombre,
-                    'registro_propiedad' => $documento->registroPropiedad?->nombre,
-                ]
+                'multiple' => $documentos->count() > 1,
+                'data' => $documentos->map(function ($documento) {
+                    return [
+                        'id' => $documento->id,
+                        'numero' => $documento->numero,
+                        'fecha' => date('Y-m-d', strtotime($documento->fecha)), // Format date for input
+                        'propietario' => $documento->propietario,
+                        'autorizador' => $documento->autorizador,
+                        'no_finca' => $documento->no_finca,
+                        'folio' => $documento->folio,
+                        'libro' => $documento->libro,
+                        'no_dominio' => $documento->no_dominio,
+                        'referencia' => $documento->referencia,
+                        'monto_poliza' => $documento->monto_poliza,
+                        'observacion' => $documento->observacion,
+                        'tipo_documento' => $documento->tipoDocumento?->nombre,
+                        'registro_propiedad' => $documento->registroPropiedad?->nombre,
+                    ];
+                })
             ]);
         }
 
-        return response()->json(['found' => false, 'data' => null]);
+        return response()->json(['found' => false, 'data' => []]);
     }
 
     /**

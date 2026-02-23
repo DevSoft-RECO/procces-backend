@@ -189,12 +189,12 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-administrativas/{id}/reingreso', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'confirmarReingreso']);
 
     // Confirmación de Documentos
-    Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);
-    Route::post('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'store']);
-    Route::get('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'index']); // Admin Index
-    Route::put('/confirmacion-documentos/{id}', [App\Http\Controllers\ConfirmacionDocController::class, 'update']); // Admin Update
-    Route::post('/confirmacion-documentos/{id}/register-document', [App\Http\Controllers\ConfirmacionDocController::class, 'registerDocument']); // New Route
-    Route::get('/confirmacion-documentos/resultados', [App\Http\Controllers\ConfirmacionDocController::class, 'indexResults']);
-    Route::get('/confirmacion-documentos/historico', [App\Http\Controllers\ConfirmacionDocController::class, 'indexHistory']);
-    Route::put('/confirmacion-documentos/{id}/archive', [App\Http\Controllers\ConfirmacionDocController::class, 'archive']);
+    Route::post('/confirmacion-documentos/search', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'search']);
+    Route::post('/confirmacion-documentos', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'store']);
+    Route::get('/confirmacion-documentos', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'index']); // Admin Index
+    Route::put('/confirmacion-documentos/{id}', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'update']); // Admin Update
+    Route::post('/confirmacion-documentos/{id}/register-document', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'registerDocument']); // New Route
+    Route::get('/confirmacion-documentos/resultados', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'indexResults']);
+    Route::get('/confirmacion-documentos/historico', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'indexHistory']);
+    Route::put('/confirmacion-documentos/{id}/archive', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'archive']);
 });
