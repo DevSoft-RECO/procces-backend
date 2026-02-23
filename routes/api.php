@@ -152,6 +152,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/exportar/seguimiento-csv', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'dispatchReport']);
     Route::get('/exportar/mis-reportes', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'listReports']);
     Route::get('/exportar/descargar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'downloadReport']);
+    Route::delete('/exportar/borrar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'destroy']);
 
     // Traslado de Expedientes
     Route::get('/traslado-expedientes/search', [App\Http\Controllers\TrasladarExpedientesController::class, 'search']);

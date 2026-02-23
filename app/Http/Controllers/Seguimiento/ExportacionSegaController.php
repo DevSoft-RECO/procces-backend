@@ -70,5 +70,22 @@ class ExportacionSegaController extends Controller
 
         return Storage::disk('local')->download($reporte->file_path);
     }
+
+    /**
+     * Elimina el reporte y su archivo físico relacionado.
+     */
+    public function destroy($id)
+    {
+        $reporte = ReporteExportacion::findOrFail($id);
+
+        // Si tiene un filepath en disco, borrarlo permanentemente para ahorrar espacio
+        if (!empty($reporte->file_path) && Storage::disk('local')->exists($reporte->file_path)) {
+            Storage::disk('local')->delete($reporte->file_path);
+        }
+
+        $reporte->delete();
+
+        return response()->json(['success' => true, 'message' => 'Reporte eliminado correctamente.']);
+    }
 }
 
