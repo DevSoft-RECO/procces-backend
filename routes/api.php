@@ -180,6 +180,11 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/solicitudes-administrativas', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'index']);
     Route::get('/solicitudes-administrativas/historico', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'historico']);
 
+    // Despacho Administrativo
+    Route::get('/solicitudes-administrativas/admin', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'index']);
+    Route::post('/solicitudes-administrativas/{id}/aceptar', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'aceptarSolicitud']);
+    Route::post('/solicitudes-administrativas/{id}/despachar', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'despacharExpediente']);
+
     // Confirmación de Documentos
     Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);
     Route::post('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'store']);

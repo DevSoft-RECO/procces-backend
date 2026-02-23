@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('id_usuario_solicita')->constrained('users');
             $table->foreignId('id_agencia')->constrained('agencias');
             $table->timestamp('fecha_solicitud')->useCurrent();
-            $table->enum('estado_solicitud', ['pendiente', 'recibido_por_admin'])->default('pendiente');
+            $table->enum('estado_solicitud', ['pendiente', 'recibido_por_admin', 'despachado', 'archivado'])->default('pendiente');
 
             // --- Bloque Despacho ---
             $table->foreignId('id_usuario_despacho')->nullable()->constrained('users');
@@ -30,6 +30,7 @@ return new class extends Migration
             $table->timestamp('fecha_finalizacion')->nullable();
 
             $table->text('observaciones')->nullable();
+            $table->text('observacion_despacho')->nullable();
             $table->string('estado')->default('pendiente');
 
             $table->timestamps();

@@ -21,6 +21,7 @@ class SolicitudAdministrativa extends Model
         'confirmacion_reingreso',
         'fecha_finalizacion',
         'observaciones',
+        'observacion_despacho',
         'estado',
     ];
 
