@@ -118,19 +118,15 @@ class SolicitanteController extends Controller
     }
 
     /**
-     * Obtiene las solicitudes activas (en proceso) del usuario actual.
+     * Obtiene las solicitudes activas (en proceso) de la agencia del usuario.
      * Cualquier estado distinto a 'archivado'
      */
     public function index(Request $request)
     {
-        $usuarioId = auth()->id();
-        $agenciaId = $request->query('id_agencia'); // Recibido del front
+        $agenciaId = $request->query('id_agencia') ?? auth()->user()->id_agencia ?? auth()->user()->agencia_id;
 
-        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente'])
-            ->where('id_usuario_solicita', $usuarioId)
-            ->when($agenciaId, function($query) use ($agenciaId) {
-                return $query->where('id_agencia', $agenciaId);
-            })
+        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita'])
+            ->where('id_agencia', $agenciaId)
             ->where('estado', '!=', 'archivado') // O el estado final que definas
             ->orderBy('created_at', 'desc')
             ->paginate(15);
@@ -142,18 +138,14 @@ class SolicitanteController extends Controller
     }
 
     /**
-     * Obtiene el historial de solicitudes finalizadas (archivadas) del usuario actual.
+     * Obtiene el historial de solicitudes finalizadas (archivadas) de la agencia del usuario.
      */
     public function historico(Request $request)
     {
-        $usuarioId = auth()->id();
-        $agenciaId = $request->query('id_agencia');
+        $agenciaId = $request->query('id_agencia') ?? auth()->user()->id_agencia ?? auth()->user()->agencia_id;
 
-        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente'])
-            ->where('id_usuario_solicita', $usuarioId)
-            ->when($agenciaId, function($query) use ($agenciaId) {
-                return $query->where('id_agencia', $agenciaId);
-            })
+        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita'])
+            ->where('id_agencia', $agenciaId)
             ->where('estado', 'archivado')
             ->orderBy('fecha_finalizacion', 'desc')
             ->orderBy('created_at', 'desc')
@@ -170,9 +162,12 @@ class SolicitanteController extends Controller
      */
     public function confirmarRecepcion($id)
     {
-        $solicitud = \App\Models\SolicitudAdministrativa::where('id', $id)
-            ->where('id_usuario_solicita', auth()->id())
-            ->firstOrFail();
+        $solicitud = \App\Models\SolicitudAdministrativa::findOrFail($id);
+
+        $userAgenciaId = auth()->user()->id_agencia ?? auth()->user()->agencia_id;
+        if ($userAgenciaId && $solicitud->id_agencia != $userAgenciaId) {
+            return response()->json(['success' => false, 'message' => 'No Autorizado: El expediente pertenece a otra agencia.'], 403);
+        }
 
         if ($solicitud->estado_solicitud !== 'despachado' || $solicitud->confirmacion_solicitante === 'si') {
             return response()->json([
@@ -198,9 +193,12 @@ class SolicitanteController extends Controller
      */
     public function iniciarDevolucion($id)
     {
-        $solicitud = \App\Models\SolicitudAdministrativa::where('id', $id)
-            ->where('id_usuario_solicita', auth()->id())
-            ->firstOrFail();
+        $solicitud = \App\Models\SolicitudAdministrativa::findOrFail($id);
+
+        $userAgenciaId = auth()->user()->id_agencia ?? auth()->user()->agencia_id;
+        if ($userAgenciaId && $solicitud->id_agencia != $userAgenciaId) {
+            return response()->json(['success' => false, 'message' => 'No Autorizado: El expediente pertenece a otra agencia.'], 403);
+        }
 
         if ($solicitud->confirmacion_solicitante !== 'si' || $solicitud->fecha_devolucion_iniciada !== null) {
             return response()->json([
