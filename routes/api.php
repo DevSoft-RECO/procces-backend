@@ -148,8 +148,10 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     // Tracking (Historial Centralizado)
     Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);
 
-    // Exportaciones (Analítica Cruda CSV)
-    Route::get('/exportar/seguimiento-csv', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'exportCSV']);
+    // Exportaciones (Analítica Cruda CSV Asíncrona)
+    Route::post('/exportar/seguimiento-csv', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'dispatchReport']);
+    Route::get('/exportar/mis-reportes', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'listReports']);
+    Route::get('/exportar/descargar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'downloadReport']);
 
     // Traslado de Expedientes
     Route::get('/traslado-expedientes/search', [App\Http\Controllers\TrasladarExpedientesController::class, 'search']);

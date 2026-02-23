@@ -4,166 +4,71 @@ namespace App\Http\Controllers\Seguimiento;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\ReporteExportacion;
+use App\Jobs\GenerarReporteSeguimientoCsvJob;
+use Illuminate\Support\Facades\Storage;
 
 class ExportacionSegaController extends Controller
 {
     /**
-     * Genera un archivo CSV con toda la información cruda de expedientes y sus fechas de seguimiento.
+     * Inicia un trabajo en segundo plano para exportar el CSV.
      */
-    public function exportCSV(Request $request)
+    public function dispatchReport(Request $request)
     {
-        $fileName = 'seguimiento_expedientes_' . date('Y-m-d_H-i-s') . '.csv';
+        // 1. Crear el registro en base de datos
+        $reporte = ReporteExportacion::create([
+            // Asumimos que el Middleware le asigna el usuario autenticado
+            'usuario_id' => auth()->id() ?? 1, // Fallback si no hay auth estricta
+            'tipo_reporte' => 'seguimiento_csv',
+            'estado' => 'pendiente',
+            'progreso_porcentaje' => 0
+        ]);
 
-        $headers = array(
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        );
+        // 2. Enviar el Job a la cola
+        GenerarReporteSeguimientoCsvJob::dispatch($reporte->id);
 
-        $callback = function() {
-            $file = fopen('php://output', 'w');
+        return response()->json([
+            'success' => true,
+            'message' => 'Reporte enviado a la cola de procesamiento.',
+            'reporte_id' => $reporte->id
+        ], 202);
+    }
 
-            // Escribir BOM para que Excel lea los acentos UTF-8 correctamente
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+    /**
+     * Lista los reportes solicitados por el usuario para armar la bandeja frontal.
+     */
+    public function listReports(Request $request)
+    {
+        $userId = auth()->id() ?? 1;
 
-            // Encabezados del CSV (Mezcla de NuevoExpediente + SeguimientoExpediente + SeguimientoFecha)
-            // Encabezados del CSV (Mezcla de NuevoExpediente + SeguimientoExpediente + SeguimientoFecha)
-            $columns = [
-                'Expediente ID',
-                'Código Cliente',
-                'CUI',
-                'Nombre Asociado',
-                'Agencia ID',
-                'Número Documento',
-                'Usuario Asesor',
-                'Tasa Interés',
-                'Monto Documento',
-                'Tipo Garantía ID',
-                'Fecha Inicio',
+        $reportes = ReporteExportacion::where('usuario_id', $userId)
+            ->where('tipo_reporte', 'seguimiento_csv')
+            ->orderBy('created_at', 'desc')
+            ->take(10) // Mostrar últimos 10 de su bandeja
+            ->get();
 
-                // Datos Seguimiento (Tracking)
-                'Estado Actual',
-                'Estado Secundario',
-                'Bufete Asignado',
-                'Recibí Garantía Real',
-                'Recibí Contrato',
-                'Tipo Contrato',
-                'Número Contrato',
-                'Contrato escaneado',
-                'Observación Legal',
+        return response()->json([
+            'success' => true,
+            'data' => $reportes
+        ]);
+    }
 
-                // Fechas de Tracking (Orden Cronológico Requerido)
-                'Fec. Enviado Secretaría',
-                'Fec. Retorno Asesores',
-                'Fec. Aceptado Secretaría',
-                'Fec. Enviado Archivos',
-                'Fec. Enviado Protocolos',
-                'Fec. Almacenado Admin',
-                'Fec. Aceptado Sec. Crédito',
-                'Fec. Enviado Abogado',
-                'Fec. Aceptado Abogado',
-                'Fec. Enviado Secret. Crédito',
-                'Archivados (Finalizado)'
-            ];
+    /**
+     * Descarga el archivo cuando este ya ha alcanzado el estado de 'completado'.
+     */
+    public function downloadReport($id)
+    {
+        $reporte = ReporteExportacion::findOrFail($id);
 
-            fputcsv($file, $columns);
+        if ($reporte->estado !== 'completado' || empty($reporte->file_path)) {
+            return response()->json(['message' => 'El reporte aún no está listo o falló.'], 400);
+        }
 
-            // Obtener los datos usando JOINs eficientes
-            DB::table('nuevos_expedientes')
-                ->leftJoin('seguimiento_expedientes as se', 'nuevos_expedientes.id', '=', 'se.id_expediente')
-                ->leftJoin('seguimiento_fechas as sf', 'nuevos_expedientes.id', '=', 'sf.id_expediente')
-                ->leftJoin('tipo_estados as te1', 'se.id_estado', '=', 'te1.id') // Join para el nombre del estado
-                ->leftJoin('tipo_estados as te2', 'se.id_estado_secundario', '=', 'te2.id')
-                ->leftJoin('bufetes', 'se.bufete_id', '=', 'bufetes.id')
-                ->leftJoin('users as u_bufete', 'bufetes.user_id', '=', 'u_bufete.id') // Join final para sacar el nombre del Abogado/Bufete
-                ->select(
-                    // Expediente Core
-                    'nuevos_expedientes.id',
-                    'nuevos_expedientes.codigo_cliente',
-                    'nuevos_expedientes.cui',
-                    'nuevos_expedientes.nombre_asociado',
-                    'nuevos_expedientes.id_agencia',
-                    'nuevos_expedientes.numero_documento',
-                    'nuevos_expedientes.usuario_asesor',
-                    'nuevos_expedientes.tasa_interes',
-                    'nuevos_expedientes.monto_documento',
-                    'nuevos_expedientes.tipo_garantia',
-                    'nuevos_expedientes.fecha_inicio',
+        if (!Storage::disk('local')->exists($reporte->file_path)) {
+            return response()->json(['message' => 'El archivo físico ya no existe en el servidor.'], 404);
+        }
 
-                    // Seguimiento Estado
-                    'te1.nombre as estado_principal',
-                    'te2.nombre as estado_secundario',
-                    'u_bufete.name as nombre_bufete',
-                    'se.tipo_contrato',
-                    'se.numero_contrato',
-                    'se.path_contrato',
-                    'se.recibi_garantia_real',
-                    'se.recibi_contrato',
-                    'se.observacion_legal',
-                    'se.archivado_at',
-
-                    // Seguimiento Fechas (En orden)
-                    'sf.f_enviado_secretaria',
-                    'sf.f_retorno_asesores',
-                    'sf.f_aceptado_secretaria',
-                    'sf.f_enviado_archivos',
-                    'sf.f_enviado_protocolos',
-                    'sf.f_almacenado_admin',
-                    'sf.f_aceptado_secretaria_credito',
-                    'sf.f_enviado_abogado',
-                    'sf.f_aceptado_abogado',
-                    'sf.f_enviado_secretaria_credito'
-                )
-                // Usando chunk para no reventar la memoria si hay miles de registros
-                ->orderBy('nuevos_expedientes.id', 'DESC')
-                ->chunk(1000, function ($expedientes) use ($file) {
-                    foreach ($expedientes as $row) {
-                        fputcsv($file, [
-                            $row->id,
-                            $row->codigo_cliente,
-                            $row->cui,
-                            $row->nombre_asociado,
-                            $row->id_agencia,
-                            $row->numero_documento,
-                            $row->usuario_asesor,
-                            $row->tasa_interes,
-                            $row->monto_documento,
-                            $row->tipo_garantia,
-                            $row->fecha_inicio,
-
-                            $row->estado_principal,
-                            $row->estado_secundario,
-                            $row->nombre_bufete,
-                            $row->recibi_garantia_real ? 'SI' : 'NO',
-                            $row->recibi_contrato ? 'SI' : 'NO',
-                            $row->tipo_contrato,
-                            $row->numero_contrato,
-                            !empty($row->path_contrato) ? 'SI' : '',
-                            $row->observacion_legal,
-
-                            // Fechas mapeadas en orden cronológico dictado
-                            $row->f_enviado_secretaria,
-                            $row->f_retorno_asesores,
-                            $row->f_aceptado_secretaria,
-                            $row->f_enviado_archivos,
-                            $row->f_enviado_protocolos,
-                            $row->f_almacenado_admin,
-                            $row->f_aceptado_secretaria_credito,
-                            $row->f_enviado_abogado,
-                            $row->f_aceptado_abogado,
-                            $row->f_enviado_secretaria_credito,
-                            $row->archivado_at
-                        ]);
-                    }
-                });
-
-            fclose($file);
-        };
-
-        return new StreamedResponse($callback, 200, $headers);
+        return Storage::disk('local')->download($reporte->file_path);
     }
 }
+
