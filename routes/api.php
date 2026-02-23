@@ -186,6 +186,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/solicitudes-administrativas/admin', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'index']);
     Route::post('/solicitudes-administrativas/{id}/aceptar', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'aceptarSolicitud']);
     Route::post('/solicitudes-administrativas/{id}/despachar', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'despacharExpediente']);
+    Route::post('/solicitudes-administrativas/{id}/reingreso', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'confirmarReingreso']);
 
     // Confirmación de Documentos
     Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);

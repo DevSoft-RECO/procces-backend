@@ -101,4 +101,33 @@ class DespachoController extends Controller
             'data' => $solicitudes
         ]);
     }
+
+    /**
+     * El administrador central confirma que el documento retornó físicamente
+     * al archivo y finaliza el proceso administrativo de este retiro.
+     */
+    public function confirmarReingreso($id)
+    {
+        $solicitud = SolicitudAdministrativa::findOrFail($id);
+
+        if ($solicitud->fecha_devolucion_iniciada === null || $solicitud->confirmacion_reingreso === 'si') {
+            return response()->json([
+                'success' => false,
+                'message' => 'El expediente aún no ha sido marcado para devolución por la agencia o ya fue reingresado.'
+            ], 400);
+        }
+
+        $solicitud->update([
+            'confirmacion_reingreso' => 'si',
+            'fecha_finalizacion' => now(),
+            'estado_solicitud' => 'archivado', // Estado global de la solicitud finalizado
+            'estado' => 'archivado' // Marcador para la vista
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expediente reingresado y solicitud finalizada correctamente.',
+            'solicitud' => $solicitud
+        ]);
+    }
 }
