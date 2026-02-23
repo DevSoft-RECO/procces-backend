@@ -67,7 +67,7 @@ class ExportacionSegaController extends Controller
                 'Fec. Enviado Abogado',
                 'Fec. Aceptado Abogado',
                 'Fec. Enviado Secret. Crédito',
-                'Archivado At (Finalizado)'
+                'Archivados (Finalizado)'
             ];
 
             fputcsv($file, $columns);
