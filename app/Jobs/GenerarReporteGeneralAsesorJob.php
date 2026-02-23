@@ -8,28 +8,26 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Models\ReporteExportacion;
-use App\Models\Expediente; // Asumiendo este es el modelo base a exportar (Ajustable a requerimientos reales)
 use Illuminate\Support\Facades\Storage;
-use League\Csv\Writer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class GenerarReporteGeneralAgenciaJob implements ShouldQueue
+class GenerarReporteGeneralAsesorJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 3600;
 
     protected $reporteId;
-    protected $agencias;
+    protected $username;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($reporteId, array $agencias = [])
+    public function __construct($reporteId, $username)
     {
         $this->reporteId = $reporteId;
-        $this->agencias = $agencias;
+        $this->username = $username;
     }
 
     /**
@@ -37,20 +35,20 @@ class GenerarReporteGeneralAgenciaJob implements ShouldQueue
      */
     public function handle(): void
     {
-        Log::info("INICIANDO JOB AGENCIA - Reporte ID: {$this->reporteId}");
+        Log::info("INICIANDO JOB ASESOR - Reporte ID: {$this->reporteId} - User: {$this->username}");
 
         $reporte = ReporteExportacion::find($this->reporteId);
 
         if (!$reporte) {
-            Log::error("JOB AGENCIA FALLIDO: No se encontró el reporte ID {$this->reporteId} en la BD");
+            Log::error("JOB ASESOR FALLIDO: No se encontró el reporte ID {$this->reporteId} en la BD");
             return;
         }
 
         try {
-            Log::info("JOB AGENCIA: Reporte Encontrado, actualizando a 'procesando'.");
+            Log::info("JOB ASESOR: Reporte Encontrado, actualizando a 'procesando'.");
             $reporte->update(['estado' => 'procesando', 'progreso_porcentaje' => 5]);
 
-            $fileName = 'general_agencias_' . time() . '_' . uniqid() . '.csv';
+            $fileName = 'general_asesor_' . time() . '_' . uniqid() . '.csv';
 
             // Usaremos un archivo temporal local primero
             $tempPath = storage_path('app/temp_' . $fileName);
@@ -59,7 +57,7 @@ class GenerarReporteGeneralAgenciaJob implements ShouldQueue
             // Escribir BOM para que Excel lea los acentos UTF-8 correctamente
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            // Encabezados del CSV (Idénticos al crudo)
+            // Encabezados del CSV (Idénticos al crudo y al de agencias)
             $columns = [
                 'Expediente ID', 'Código Cliente', 'CUI', 'Nombre Asociado', 'Agencia ID',
                 'Número Documento', 'Usuario Asesor', 'Tasa Interés', 'Monto Documento',
@@ -92,9 +90,9 @@ class GenerarReporteGeneralAgenciaJob implements ShouldQueue
                     'sf.f_aceptado_secretaria_credito', 'sf.f_enviado_abogado', 'sf.f_aceptado_abogado', 'sf.f_enviado_secretaria_credito'
                 );
 
-            // Filtro dinámico: Si el arreglo NO está vacío, filtramos
-            if (!empty($this->agencias)) {
-                $query->whereIn('nuevos_expedientes.id_agencia', $this->agencias);
+            // Filtro por nombre de usuario asesor (coincidencia parcial/flexible)
+            if (!empty($this->username)) {
+                $query->where('nuevos_expedientes.usuario_asesor', 'LIKE', '%' . $this->username . '%');
             }
 
             // Ordenamiento por defecto
@@ -146,13 +144,13 @@ class GenerarReporteGeneralAgenciaJob implements ShouldQueue
                 'file_path' => $finalPath
             ]);
 
-            Log::info("JOB AGENCIA FINALIZADO EXITOSAMENTE - Reporte ID: {$this->reporteId}");
+            Log::info("JOB ASESOR FINALIZADO EXITOSAMENTE - Reporte ID: {$this->reporteId}");
 
         } catch (\Exception $e) {
             if (isset($file) && is_resource($file)) {
                 fclose($file);
             }
-            Log::error('Fallo creando reporte de Agencia: ' . $e->getMessage());
+            Log::error('Fallo creando reporte de Asesor: ' . $e->getMessage());
             $reporte->update([
                 'estado' => 'fallido',
                 'error_msg' => 'Error al generar CSV: ' . substr($e->getMessage(), 0, 200)
