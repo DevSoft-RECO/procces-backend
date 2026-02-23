@@ -176,6 +176,9 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Retiro Administrativo
     Route::get('/solicitudes-administrativas/buscar', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'buscarExpediente']);
+    Route::post('/solicitudes-administrativas', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'crearSolicitud']);
+    Route::get('/solicitudes-administrativas', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'index']);
+    Route::get('/solicitudes-administrativas/historico', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'historico']);
 
     // Confirmación de Documentos
     Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);

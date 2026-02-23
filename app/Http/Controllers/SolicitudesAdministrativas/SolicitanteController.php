@@ -69,4 +69,99 @@ class SolicitanteController extends Controller
             'message' => 'Expediente validado correctamente y listo para solicitud de retiro.'
         ]);
     }
+
+    /**
+     * Registra el inicio de un retiro de archivo.
+     */
+    public function crearSolicitud(Request $request)
+    {
+        $request->validate([
+            'id_expediente' => 'required|exists:nuevos_expedientes,id',
+            'observaciones' => 'required|string',
+            'id_agencia' => 'required|exists:agencias,id', // Se recibe del frontend o se puede sacar de auth()->user()
+        ]);
+
+        // Verificar si ya existe una solicitud activa
+        $solicitudActiva = \App\Models\SolicitudAdministrativa::where('id_expediente', $request->id_expediente)
+            ->whereNotIn('estado', ['finalizado', 'devuelto'])
+            ->first();
+
+        if ($solicitudActiva) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya existe una solicitud en proceso para este expediente.',
+            ], 400);
+        }
+
+        try {
+            $solicitud = \App\Models\SolicitudAdministrativa::create([
+                'id_expediente' => $request->id_expediente,
+                'id_usuario_solicita' => auth()->id(),
+                'id_agencia' => $request->id_agencia, // Usamos la que manda el front (como hacen en otras partes del app) o auth->user->agencia_id
+                'fecha_solicitud' => now(),
+                'estado' => 'pendiente',
+                'observaciones' => $request->observaciones,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Solicitud de retiro creada exitosamente.',
+                'solicitud' => $solicitud
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la solicitud: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene las solicitudes activas (en proceso) del usuario actual.
+     * Cualquier estado distinto a 'archivado'
+     */
+    public function index(Request $request)
+    {
+        $usuarioId = auth()->id();
+        $agenciaId = $request->query('id_agencia'); // Recibido del front
+
+        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente'])
+            ->where('id_usuario_solicita', $usuarioId)
+            ->when($agenciaId, function($query) use ($agenciaId) {
+                return $query->where('id_agencia', $agenciaId);
+            })
+            ->where('estado', '!=', 'archivado') // O el estado final que definas
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $solicitudes
+        ]);
+    }
+
+    /**
+     * Obtiene el historial de solicitudes finalizadas (archivadas) del usuario actual.
+     */
+    public function historico(Request $request)
+    {
+        $usuarioId = auth()->id();
+        $agenciaId = $request->query('id_agencia');
+
+        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente'])
+            ->where('id_usuario_solicita', $usuarioId)
+            ->when($agenciaId, function($query) use ($agenciaId) {
+                return $query->where('id_agencia', $agenciaId);
+            })
+            ->where('estado', 'archivado')
+            ->orderBy('fecha_finalizacion', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $solicitudes
+        ]);
+    }
 }
