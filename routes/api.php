@@ -174,6 +174,9 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-retiro/{id}/register-document', [SolicitudRetiroController::class, 'registerDocument']); // New Route for Historical
     Route::apiResource('solicitudes-retiro', SolicitudRetiroController::class);
 
+    // Retiro Administrativo
+    Route::get('/solicitudes-administrativas/buscar', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'buscarExpediente']);
+
     // Confirmación de Documentos
     Route::post('/confirmacion-documentos/search', [App\Http\Controllers\ConfirmacionDocController::class, 'search']);
     Route::post('/confirmacion-documentos', [App\Http\Controllers\ConfirmacionDocController::class, 'store']);

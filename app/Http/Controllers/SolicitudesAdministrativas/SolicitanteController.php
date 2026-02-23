@@ -24,7 +24,7 @@ class SolicitanteController extends Controller
         $criterio = $request->criterio;
 
         // 1. Buscar por ID (llave primaria) o Número de Documento (código único)
-        $expediente = NuevoExpediente::with(['agencia', 'asesor'])
+        $expediente = NuevoExpediente::with(['agencia'])
             ->where(function($query) use ($criterio) {
                 $query->where('id', $criterio)
                       ->orWhere('numero_documento', $criterio);

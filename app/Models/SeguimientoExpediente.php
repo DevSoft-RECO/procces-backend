@@ -62,4 +62,9 @@ class SeguimientoExpediente extends Model
     {
         return $this->belongsTo(TipoEstado::class, 'id_estado_secundario', 'id');
     }
+        public function asesor()
+    {
+        // 'usuario_asesor' in nuevos_expedientes matches 'username' in users
+        return $this->belongsTo(User::class, 'usuario_asesor', 'username');
+    }
 }
