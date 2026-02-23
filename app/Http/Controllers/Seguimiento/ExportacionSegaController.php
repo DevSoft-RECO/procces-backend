@@ -53,6 +53,7 @@ class ExportacionSegaController extends Controller
                 'Recibí Contrato',
                 'Tipo Contrato',
                 'Número Contrato',
+                'Contrato escaneado',
                 'Observación Legal',
 
                 // Fechas de Tracking (Orden Cronológico Requerido)
@@ -99,6 +100,7 @@ class ExportacionSegaController extends Controller
                     'u_bufete.name as nombre_bufete',
                     'se.tipo_contrato',
                     'se.numero_contrato',
+                    'se.path_contrato',
                     'se.recibi_garantia_real',
                     'se.recibi_contrato',
                     'se.observacion_legal',
@@ -140,6 +142,7 @@ class ExportacionSegaController extends Controller
                             $row->recibi_contrato ? 'SI' : 'NO',
                             $row->tipo_contrato,
                             $row->numero_contrato,
+                            !empty($row->path_contrato) ? 'SI' : '',
                             $row->observacion_legal,
 
                             // Fechas mapeadas en orden cronológico dictado
