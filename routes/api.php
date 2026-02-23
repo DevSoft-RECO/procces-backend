@@ -179,6 +179,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/solicitudes-administrativas', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'crearSolicitud']);
     Route::get('/solicitudes-administrativas', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'index']);
     Route::get('/solicitudes-administrativas/historico', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'historico']);
+    Route::post('/solicitudes-administrativas/{id}/confirmar', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'confirmarRecepcion']);
+    Route::post('/solicitudes-administrativas/{id}/devolver', [\App\Http\Controllers\SolicitudesAdministrativas\SolicitanteController::class, 'iniciarDevolucion']);
 
     // Despacho Administrativo
     Route::get('/solicitudes-administrativas/admin', [\App\Http\Controllers\SolicitudesAdministrativas\DespachoController::class, 'index']);

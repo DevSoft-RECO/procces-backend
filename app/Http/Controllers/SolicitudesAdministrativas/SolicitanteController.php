@@ -164,4 +164,61 @@ class SolicitanteController extends Controller
             'data' => $solicitudes
         ]);
     }
+
+    /**
+     * El solicitante (agencia) confirma que recibió el expediente físico.
+     */
+    public function confirmarRecepcion($id)
+    {
+        $solicitud = \App\Models\SolicitudAdministrativa::where('id', $id)
+            ->where('id_usuario_solicita', auth()->id())
+            ->firstOrFail();
+
+        if ($solicitud->estado_solicitud !== 'despachado' || $solicitud->confirmacion_solicitante === 'si') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede confirmar la recepción en este estado.'
+            ], 400);
+        }
+
+        $solicitud->update([
+            'confirmacion_solicitante' => 'si',
+            'estado' => 'en_agencia', // Marcamos que el file está físicamente en la agencia
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recepción confirmada exitosamente.',
+            'solicitud' => $solicitud
+        ]);
+    }
+
+    /**
+     * El solicitante (agencia) marca el expediente para devolverlo al archivo central.
+     */
+    public function iniciarDevolucion($id)
+    {
+        $solicitud = \App\Models\SolicitudAdministrativa::where('id', $id)
+            ->where('id_usuario_solicita', auth()->id())
+            ->firstOrFail();
+
+        if ($solicitud->confirmacion_solicitante !== 'si' || $solicitud->fecha_devolucion_iniciada !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No es posible iniciar la devolución de este expediente.'
+            ], 400);
+        }
+
+        $solicitud->update([
+            'fecha_devolucion_iniciada' => now(),
+            'estado' => 'retornando', // Marcador visual de que está volviendo al archivo
+            // confirmacion_reingreso sigue en 'pendiente' hasta que el admin central lo reciba
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expediente marcado para devolución.',
+            'solicitud' => $solicitud
+        ]);
+    }
 }

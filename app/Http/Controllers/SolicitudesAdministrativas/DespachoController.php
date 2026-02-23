@@ -55,7 +55,7 @@ class DespachoController extends Controller
         // Agregar observaciones si vienen en el request
         $observaciones = $solicitud->observacion_despacho;
         if ($request->filled('observacion_despacho')) {
-            $observaciones .= "\n[Despacho]: " . $request->observacion_despacho;
+            $observaciones = $request->observacion_despacho;
         }
 
         $solicitud->update([
