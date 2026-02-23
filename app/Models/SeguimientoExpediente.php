@@ -24,7 +24,6 @@ class SeguimientoExpediente extends Model
         'numero_contrato',
         'path_contrato',
         'bufete_id',
-        'recibi_pagare',
         'recibi_garantia_real',
         'recibi_contrato',
         'observacion_legal',
