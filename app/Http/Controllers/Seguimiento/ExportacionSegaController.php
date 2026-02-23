@@ -42,7 +42,7 @@ class ExportacionSegaController extends Controller
         $userId = auth()->id() ?? 1;
 
         $reportes = ReporteExportacion::where('usuario_id', $userId)
-            ->whereIn('tipo_reporte', ['seguimiento_csv', 'general_agencias', 'general_asesor', 'general_documentos'])
+            ->whereIn('tipo_reporte', ['seguimiento_csv', 'general_agencias', 'general_asesor', 'general_documentos', 'general_solicitudes_admin'])
             ->orderBy('created_at', 'desc')
             ->take(10) // Mostrar últimos 10 de su bandeja
             ->get();

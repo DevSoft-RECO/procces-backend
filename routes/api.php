@@ -153,6 +153,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/exportar/general-agencias', [\App\Http\Controllers\Seguimiento\ReporteGeneralAgenciaController::class, 'dispatchReport']);
     Route::post('/exportar/general-asesor', [\App\Http\Controllers\Seguimiento\ReporteGeneralAsesorController::class, 'dispatchReport']);
     Route::post('/exportar/general-documentos', [\App\Http\Controllers\Seguimiento\ReporteDocumentosController::class, 'dispatchReport']);
+    Route::post('/exportar/general-solicitudes-admin', [\App\Http\Controllers\Seguimiento\ReporteSolicitudesAdminController::class, 'dispatchReport']);
     Route::get('/exportar/mis-reportes', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'listReports']);
     Route::get('/exportar/descargar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'downloadReport']);
     Route::delete('/exportar/borrar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'destroy']);
