@@ -281,39 +281,19 @@ class DashboardController extends Controller
 
         return response()->json($months);
     }
-    /**
-     * Get Average Processing Times (Bottleneck Analysis)
-     */
     public function processingTimes()
     {
-        // We need to calculate the average time difference between specific dates.
-        // 1. Creation -> Tracking (created_at -> f_enviado_secretaria)
-        // 2. Secretaria Internal (f_aceptado_secretaria -> f_enviado_protocolos)
-        // 3. Secretaria -> Abogado (f_aceptado_secretaria_credito -> f_enviado_abogado)
-        // 4. Abogado Processing (f_aceptado_abogado -> f_enviado_secretaria_credito)
-
-        // We use a raw query because doing this in Eloquent collection for all records is heavy.
-        // DATEDIFF in MySQL returns days.
-        // We only consider records where BOTH dates exist.
+        // Calculamos el promedio excluyendo operaciones que resulten negativas (indicativo de que
+        // un documento re-entró a etapas previas (rebotes/devoluciones) regrabando la fecha posterior).
+        // Usamos TIMESTAMPDIFF(HOUR) / 24.0 para obtener promedios decimales correctos incluso en el mismo día.
 
         $avgs = DB::table('nuevos_expedientes')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
             ->select(
-                // 1. Creation -> Sent to Secretary
-                DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_enviado_secretaria, nuevos_expedientes.created_at)) as avg_creation_to_secretary'),
-
-                // 2. Secretary Internal (Accepted -> Sent to Protocol)
-                // Note: User asked: "f_aceptado_secretaria con f_enviado_protocolos"
-                DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_enviado_protocolos, seguimiento_fechas.f_aceptado_secretaria)) as avg_secretary_internal'),
-
-                // 3. Secretary -> Lawyer (Accepted Credit Sec -> Sent to Lawyer)
-                // Note: User asked: "f_aceptado_secretaria_creditos y f_enviado_abogado"
-                // Column in model/DB is `f_aceptado_secretaria_credito` (singular/plural check: model says singular)
-                DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_enviado_abogado, seguimiento_fechas.f_aceptado_secretaria_credito)) as avg_secretary_to_lawyer'),
-
-                // 4. Lawyer Return (Accepted Lawyer -> Sent to Credit Sec)
-                // Note: User asked: "f_aceptado_abogado y f_enviado_secretaria_credito"
-                DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_enviado_secretaria_credito, seguimiento_fechas.f_aceptado_abogado)) as avg_lawyer_return')
+                DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_secretaria >= nuevos_expedientes.created_at THEN TIMESTAMPDIFF(HOUR, nuevos_expedientes.created_at, seguimiento_fechas.f_enviado_secretaria) / 24.0 ELSE NULL END) as avg_creation_to_secretary'),
+                DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_protocolos >= seguimiento_fechas.f_aceptado_secretaria THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_secretaria, seguimiento_fechas.f_enviado_protocolos) / 24.0 ELSE NULL END) as avg_secretary_internal'),
+                DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_abogado >= seguimiento_fechas.f_aceptado_secretaria_credito THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_secretaria_credito, seguimiento_fechas.f_enviado_abogado) / 24.0 ELSE NULL END) as avg_secretary_to_lawyer'),
+                DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_secretaria_credito >= seguimiento_fechas.f_aceptado_abogado THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_abogado, seguimiento_fechas.f_enviado_secretaria_credito) / 24.0 ELSE NULL END) as avg_lawyer_return')
             )
             ->first();
 
