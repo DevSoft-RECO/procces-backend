@@ -13,19 +13,21 @@ class DashboardController extends Controller
     /**
      * Get High-Level KPIs
      */
-    public function kpi()
+    public function kpi(Request $request)
     {
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+
         $totalActive = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', '!=', 11); // Not Finalized
-        })->count();
+        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])->count();
 
         $totalFinalized = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', 11); // Finalized
-        })->count();
+        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])->count();
 
-        // Monto: Filtrado por el mes actual (Created/Started this month)
-        $startOfMonth = Carbon::now()->startOfMonth();
-        $endOfMonth = Carbon::now()->endOfMonth();
+        // Monto: Filtrado por el mes
 
         $totalAmount = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
             ->sum('monto_documento');
@@ -35,6 +37,7 @@ class DashboardController extends Controller
         $avgDaysOpen = DB::table('nuevos_expedientes')
             ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
+            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
             ->where('seguimiento_expedientes.id_estado', 11)
             ->whereNotNull('seguimiento_fechas.f_almacenado_admin')
             ->whereNotNull('nuevos_expedientes.fecha_inicio')
@@ -52,11 +55,16 @@ class DashboardController extends Controller
     /**
      * Get Pipeline Distribution (Bottlenecks)
      */
-    public function pipeline()
+    public function pipeline(Request $request)
     {
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+
         // Group by Current State
         $distribution = NuevoExpediente::join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('tipo_estados', 'seguimiento_expedientes.id_estado', '=', 'tipo_estados.id')
+            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
             ->select('tipo_estados.nombre as state_name', DB::raw('count(*) as count'))
             ->where('seguimiento_expedientes.id_estado', '!=', 11) // Exclude Finalized for pipeline view
             ->groupBy('tipo_estados.nombre')
@@ -95,6 +103,9 @@ class DashboardController extends Controller
 
         // Refactored approach:
         $agencyId = $request->input('agency_id');
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
 
         $metrics = [];
 
@@ -118,6 +129,10 @@ class DashboardController extends Controller
                 ->whereHas('fechas', function($q) { $q->whereNotNull('f_retorno_asesores'); })
                 ->count();
 
+            $creditos = (clone $baseQuery)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+                ->sum('monto_documento');
+
              // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
 
@@ -133,7 +148,8 @@ class DashboardController extends Controller
                 'total_cases' => $total,
                 'rejection_rate' => $rate,
                 'success_rate' => $successRate,
-                'clean_cases' => $cleanCount
+                'clean_cases' => $cleanCount,
+                'creditos' => $creditos ?? 0
             ];
         }
 
@@ -197,6 +213,10 @@ class DashboardController extends Controller
     public function agencies(Request $request)
     {
         $agencies = \App\Models\Agencia::all();
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+
         $data = [];
 
         foreach ($agencies as $agency) {
@@ -213,6 +233,10 @@ class DashboardController extends Controller
                 })
                 ->count();
 
+            $creditos = NuevoExpediente::where('id_agencia', $agency->id)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+                ->sum('monto_documento');
+
             // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
 
@@ -226,7 +250,8 @@ class DashboardController extends Controller
                 'rejected_cases' => $rejectedCount,
                 'total' => $total,
                 'rejection_rate' => $rate,
-                'success_rate' => $successRate
+                'success_rate' => $successRate,
+                'creditos' => $creditos ?? 0
             ];
         }
 
@@ -281,14 +306,19 @@ class DashboardController extends Controller
 
         return response()->json($months);
     }
-    public function processingTimes()
+    public function processingTimes(Request $request)
     {
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+
         // Calculamos el promedio excluyendo operaciones que resulten negativas (indicativo de que
         // un documento re-entró a etapas previas (rebotes/devoluciones) regrabando la fecha posterior).
         // Usamos TIMESTAMPDIFF(HOUR) / 24.0 para obtener promedios decimales correctos incluso en el mismo día.
 
         $avgs = DB::table('nuevos_expedientes')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
+            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
             ->select(
                 DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_secretaria >= nuevos_expedientes.created_at THEN TIMESTAMPDIFF(HOUR, nuevos_expedientes.created_at, seguimiento_fechas.f_enviado_secretaria) / 24.0 ELSE NULL END) as avg_creation_to_secretary'),
                 DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_protocolos >= seguimiento_fechas.f_aceptado_secretaria THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_secretaria, seguimiento_fechas.f_enviado_protocolos) / 24.0 ELSE NULL END) as avg_secretary_internal'),
