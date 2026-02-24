@@ -90,5 +90,24 @@ class ExportacionSegaController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Reporte eliminado correctamente.']);
     }
+
+    /**
+     * Elimina TODOS los reportes generados por el usuario, y sus respectivos archivos físicos.
+     */
+    public function destroyAll(Request $request)
+    {
+        $userId = $request->user()->id ?? 1;
+
+        $reportes = ReporteExportacion::where('usuario_id', $userId)->get();
+
+        foreach ($reportes as $reporte) {
+            if (!empty($reporte->file_path) && Storage::disk('local')->exists($reporte->file_path)) {
+                Storage::disk('local')->delete($reporte->file_path);
+            }
+            $reporte->delete();
+        }
+
+        return response()->json(['success' => true, 'message' => 'Todos los reportes y archivos han sido purgados exitosamente.']);
+    }
 }
 
