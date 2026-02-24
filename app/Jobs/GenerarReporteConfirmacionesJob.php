@@ -108,10 +108,13 @@ class GenerarReporteConfirmacionesJob implements ShouldQueue
             $query->chunk(1000, function ($rows) use ($file) {
                 foreach ($rows as $row) {
 
-                    // Parse Booleans to human readable strings
+                    // Parse Confirmacion to human readable string (It comes as 'SI' or 'NO' text string from Controller)
                     $confirmacionStr = "Pendiente";
-                    if ($row->confirmacion === 1) $confirmacionStr = "Sí (Físico Encontrado)";
-                    elseif ($row->confirmacion === 0) $confirmacionStr = "No (Extraviado / No Encontrado)";
+                    if ($row->confirmacion === 'SI') {
+                        $confirmacionStr = "Sí (Físico Encontrado)";
+                    } elseif ($row->confirmacion === 'NO') {
+                        $confirmacionStr = "No (Ya fue Retirado / No Encontrado)";
+                    }
 
                     $archivadoStr = $row->archivado ? "Sí" : "No";
 
