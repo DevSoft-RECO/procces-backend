@@ -30,14 +30,16 @@ class DashboardController extends Controller
         $totalAmount = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
             ->sum('monto_documento');
 
-        // Avg Days Open (Active)
-        // This is an approximation. Ideally done in DB, but for now PHP is fine for reasonable dataset.
-        // For strict SQL handling we would use DATEDIFF.
-        $avgDaysOpen = NuevoExpediente::whereHas('seguimientos', function($q) {
-             $q->where('id_estado', '!=', 11);
-        })
-        ->select(DB::raw('AVG(DATEDIFF(NOW(), fecha_inicio)) as avg_days'))
-        ->value('avg_days');
+        // Avg Time from Opening to Closing (Finalized Cases)
+        // Calculamos el promedio de días que tomó cerrar los expedientes (diferencia entre f_almacenado_admin y fecha_inicio)
+        $avgDaysOpen = DB::table('nuevos_expedientes')
+            ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
+            ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
+            ->where('seguimiento_expedientes.id_estado', 11)
+            ->whereNotNull('seguimiento_fechas.f_almacenado_admin')
+            ->whereNotNull('nuevos_expedientes.fecha_inicio')
+            ->select(DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_almacenado_admin, nuevos_expedientes.fecha_inicio)) as avg_days'))
+            ->value('avg_days');
 
         return response()->json([
             'total_active' => $totalActive,
