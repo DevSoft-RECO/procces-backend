@@ -34,4 +34,9 @@ class ConfirmacionDocumento extends Model
     {
         return $this->belongsTo(Documento::class);
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
