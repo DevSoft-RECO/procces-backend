@@ -52,8 +52,8 @@ class ImportNuevosExpedientesJob implements ShouldQueue
 
             // Mapping Array
             $agencyMap = [
-                '2600 CENTRAL' => 99,
-                '2600' => 99,
+                '2600 CENTRAL' => 1,
+                '2600' => 1,
                 '2602 NUEVA CATARINA' => 2,
                 '2602' => 2,
                 '2603 SAN ANTONIO HUISTA' => 3,
