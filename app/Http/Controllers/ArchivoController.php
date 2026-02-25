@@ -136,7 +136,11 @@ class ArchivoController extends Controller
     public function archivar(Request $request, $id_expediente)
     {
         $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $id_expediente)
-            ->with(['nuevoExpediente.agencia'])
+            ->with([
+                'nuevoExpediente.agencia',
+                'nuevoExpediente.documentos.tipoDocumento',
+                'nuevoExpediente.documentos.registroPropiedad'
+            ])
             ->orderBy('created_at', 'desc')
             ->first();
 
@@ -158,7 +162,35 @@ class ArchivoController extends Controller
 
             $nombreAgencia = $nuevoExpediente->agencia ? $nuevoExpediente->agencia->nombre : 'N/A';
 
-            // 1. Crear el registro histórico en la tabla de custodia final
+            // 1. Recopilar y concatenar la información de todos los documentos asociados
+            $datosGarantiaTexto = null;
+            if ($nuevoExpediente->documentos && $nuevoExpediente->documentos->isNotEmpty()) {
+                $textosDocumentos = [];
+                foreach ($nuevoExpediente->documentos as $doc) {
+                    $partes = [];
+                    $partes[] = "Doc: {$doc->numero}";
+                    if ($doc->fecha) $partes[] = "Fecha: {$doc->fecha}";
+
+                    if ($doc->tipoDocumento) {
+                        $partes[] = "Tipo: {$doc->tipoDocumento->nombre}";
+                    }
+                    if ($doc->registroPropiedad) {
+                        $partes[] = "Registro: {$doc->registroPropiedad->nombre}";
+                    }
+
+                    if ($doc->no_finca) $partes[] = "Finca: {$doc->no_finca}";
+                    if ($doc->folio) $partes[] = "Folio: {$doc->folio}";
+                    if ($doc->libro) $partes[] = "Libro: {$doc->libro}";
+                    if ($doc->propietario) $partes[] = "Propietario: {$doc->propietario}";
+
+                    // Unimos las partes de cada documento con comas
+                    $textosDocumentos[] = implode(', ', $partes);
+                }
+                // Unimos todos los documentos encontrados con el separador de doble pipe si hay más de 1
+                $datosGarantiaTexto = implode(' || ', $textosDocumentos);
+            }
+
+            // 2. Crear el registro histórico en la tabla de custodia final
             \App\Models\Expediente::create([
                 'codigo_cliente'    => $nuevoExpediente->codigo_cliente,
                 'agencia'           => $nombreAgencia,
@@ -169,7 +201,7 @@ class ArchivoController extends Controller
                 'asociado'          => $nuevoExpediente->nombre_asociado,
                 'monto'             => $nuevoExpediente->monto_documento,
                 'tipo_garantia'     => $nuevoExpediente->tipo_garantia,
-                'datos_garantia'    => null,
+                'datos_garantia'    => $datosGarantiaTexto,
                 'contrato'          => $seguimiento->numero_contrato,
                 'inscripcion_otros_contratos' => null,
                 'ingreso'           => now()->format('Y-m-d'),
