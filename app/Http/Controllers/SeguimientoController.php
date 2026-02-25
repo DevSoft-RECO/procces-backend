@@ -71,32 +71,41 @@ class SeguimientoController extends Controller
     {
         $estado = $request->query('status', 1);
 
+        $query = NuevoExpediente::query();
+
+        // 1. Filtrar por Agencia del Usuario (Excepto Super Admin)
+        if (auth()->check()) {
+            $user = auth()->user();
+            $roles = $user->roles_list ?? [];
+            $userAgenciaId = $user->id_agencia ?? $user->agencia_id;
+
+            if (!in_array('Super Admin', $roles) && $userAgenciaId) {
+                $query->where('id_agencia', $userAgenciaId);
+            }
+        }
+
         if ($estado == 3) {
             // Lógica especial para Buzón Aceptados (Agencia):
             // Debe mostrarse si id_estado >= 3 (ya fue aceptado)
             // Y mantenerse visible MIENTRAS id_estado_secundario != 6
-            $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
-                $query->where('id_estado', '>=', 3)
-                      ->where(function ($sub) {
-                          $sub->where('id_estado_secundario', '!=', 6)
-                              ->orWhereNull('id_estado_secundario');
-                      })
-                      ->where('archivo_administrativo', '!=', 'Si'); // Excluir archivados administrativamente
-            })
-            ->with(['fechas', 'seguimientos.estado'])
-            ->orderBy('fecha_inicio', 'desc')
-            ->paginate(15);
+            $query->whereHas('seguimientos', function ($q) {
+                $q->where('id_estado', '>=', 3)
+                  ->where(function ($sub) {
+                      $sub->where('id_estado_secundario', '!=', 6)
+                          ->orWhereNull('id_estado_secundario');
+                  })
+                  ->where('archivo_administrativo', '!=', 'Si'); // Excluir archivados administrativamente
+            });
         } else {
             // Lógica estándar para estados 1 (Buzón) y 2 (Regresados)
-            $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) use ($estado) {
-                $query->where('id_estado', $estado);
+            $query->whereHas('seguimientos', function ($q) use ($estado) {
+                $q->where('id_estado', $estado);
+            });
+        }
 
-
-            })
-            ->with(['fechas', 'seguimientos.estado'])
+        $expedientes = $query->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')
             ->paginate(15);
-        }
 
         return response()->json([
             'success' => true,
