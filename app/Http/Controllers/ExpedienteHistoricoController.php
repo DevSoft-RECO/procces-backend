@@ -63,7 +63,11 @@ class ExpedienteHistoricoController extends Controller
             'contrato' => 'required|string',
         ]);
 
-        $expediente = Expediente::where('contrato', $request->contrato)->first();
+        $termino = $request->contrato;
+
+        $expediente = Expediente::where('numero_documento', $termino)
+            ->orWhere('cta_bw', $termino)
+            ->first();
 
         if (!$expediente) {
             return response()->json([
