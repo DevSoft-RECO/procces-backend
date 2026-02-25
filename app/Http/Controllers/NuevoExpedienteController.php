@@ -18,6 +18,18 @@ class NuevoExpedienteController extends Controller
     {
         $query = NuevoExpediente::query();
 
+        // Filtrar expedientes para que solo vea los de su usuario (case insensitive)
+        // EXCEPCIÓN: Los Super Admin ven todo.
+        if (auth()->check() && auth()->user()->username) {
+            $user = auth()->user();
+            $roles = $user->roles_list ?? [];
+
+            if (!in_array('Super Admin', $roles)) {
+                $usernameStr = strtolower($user->username);
+                $query->whereRaw('LOWER(usuario_asesor) = ?', [$usernameStr]);
+            }
+        }
+
         // Filtro por Tab (Estado del flujo)
         if ($request->has('tab')) {
             if ($request->tab === 'nuevos') {
