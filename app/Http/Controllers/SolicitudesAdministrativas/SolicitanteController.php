@@ -50,9 +50,10 @@ class SolicitanteController extends Controller
             ], 403);
         }
 
-        // 3. (Opcional) Validar si ya existe una solicitud activa para no duplicar
+        // 3. Validar si ya existe una solicitud activa para no duplicar
+        // REGLA: Solo se puede pedir si NO existe registro o si los que existen están 'archivado'
         $solicitudActiva = \App\Models\SolicitudAdministrativa::where('id_expediente', $expediente->id)
-            ->whereNotIn('estado', ['finalizado', 'devuelto']) // Ajustar según los estados finales
+            ->where('estado', '!=', 'archivado')
             ->first();
 
         if ($solicitudActiva) {
@@ -82,8 +83,9 @@ class SolicitanteController extends Controller
         ]);
 
         // Verificar si ya existe una solicitud activa
+        // REGLA: Solo se puede pedir si NO existe registro o si los que existen están 'archivado'
         $solicitudActiva = \App\Models\SolicitudAdministrativa::where('id_expediente', $request->id_expediente)
-            ->whereNotIn('estado', ['finalizado', 'devuelto'])
+            ->where('estado', '!=', 'archivado')
             ->first();
 
         if ($solicitudActiva) {
