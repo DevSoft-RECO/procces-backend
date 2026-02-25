@@ -10,6 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ImportExpedientesJob implements ShouldQueue
 {
@@ -48,8 +49,11 @@ class ImportExpedientesJob implements ShouldQueue
                 throw new \Exception("El archivo no existe: {$this->filePath}");
             }
 
-            // TRUNCATE TABLE AS REQUESTED
-            DB::table('expedientes')->truncate();
+            // INSERTAR REGISTROS (Añadir en lugar de vaciar la tabla)
+            // Se comentan las lineas de vaciado para preservar la información actual.
+            // Schema::disableForeignKeyConstraints();
+            // DB::table('expedientes')->truncate();
+            // Schema::enableForeignKeyConstraints();
 
             Cache::put($cacheKey, [
                 'status' => 'processing',
@@ -57,7 +61,7 @@ class ImportExpedientesJob implements ShouldQueue
                 'current_row' => 0,
                 'processed' => 0,
                 'skipped' => 0,
-                'message' => 'Limpiando base de datos e iniciando carga...'
+                'message' => 'Iniciando carga de nuevos registros...'
             ], 3600);
 
             $file = fopen($this->filePath, 'r');
@@ -91,7 +95,7 @@ class ImportExpedientesJob implements ShouldQueue
                 }
 
                 // Skip empty rows
-                if (empty($row[1])) { // CODIGO CLIENTE is at index 1
+                if (empty($row[5])) { // CODIGO CLIENTE is at index 5
                      continue;
                 }
 
@@ -102,9 +106,9 @@ class ImportExpedientesJob implements ShouldQueue
                 $full = $this->dates['full'] ?? false;
 
                 if (!$full && $desde) {
-                     // Date is at index 8 (fechainicio)
+                     // Date is at index 1 (fecha_inicio)
                      // Format in CSV is dd/mm/yyyy. Need to convert to YYYYMMDD for comparison if using that format strings
-                     $rawDate = $row[8] ?? null;
+                     $rawDate = $row[1] ?? null;
                      $compDate = $this->parseDateForComparison($rawDate);
 
                      if (!$compDate || $compDate < $desde || $compDate > $hasta) {
@@ -191,44 +195,31 @@ class ImportExpedientesJob implements ShouldQueue
     {
         if (empty($batchData)) return;
 
-        // Using insert because we truncated, so no need for upsert overhead
-        // But upsert is safer if duplicates exist in CSV
-        DB::table('expedientes')->upsert(
-            $batchData,
-            ['codigo_cliente'],
-            [
-               'agencia', 'fecha_inicio', 'cta_bw', 'numero_documento', 'cif', 'asociado',
-               'monto', 'tipo_garantia', 'datos_garantia', 'contrato',
-               'inscripcion_otros_contratos', 'ingreso', 'inventario',
-               'salida', 'observacion', 'estado', 'updated_at'
-            ]
-        );
+        // Utilizamos insert() porque la tabla se trunca o puede recibir nuevos registros sin causar conflicto
+        // y la migración ya no requiere que 'codigo_cliente' sea único (ahora tiene clave primaria id autoincremental).
+        DB::table('expedientes')->insert($batchData);
     }
 
     private function mapRow($row)
     {
         // CSV Structure (v2):
         // 0: AGENCIA
-        // 1: CodigoCliente
-        // 2: Numero Docuemnto
-        // 3: Tipo Documento
-        // 4: UsusuarioAsesor
-        // 5: Tasa Interes
-        // 6: MONTO (Q and ,)
-        // 7: TIPO DE GARANTIA
-        // 8: FECHA INICIO (d/m/Y)
-        // 9: CUI
-        // 10: ASOCIADO
-        // 11: CONTRATO
-        // 12: CTA.BW
-        // 13: CIF
-        // 14: DATOS DE GARANTIA
-        // 15: INSCRIPCION/OTROS CONTRATOS
-        // 16: INGRESO
-        // 17: INVENTARIO
-        // 18: SALIDA
-        // 19: OBSERVACIÓN
-        // 20: ESTADO
+        // 1: Fecha Inicio
+        // 2: cta_bw
+        // 3: numero_documento
+        // 4: cif
+        // 5: codigo_cliente
+        // 6: asociado
+        // 7: monto
+        // 8: tipo_garantia
+        // 9: datos_garantia
+        // 10: contrato
+        // 11: inscripcion_otros_contratos
+        // 12: ingreso
+        // 13: inventario
+        // 14: salida
+        // 15: observacion
+        // 16: estado
 
                 return [
             'agencia'              => $this->val($row, 0),
