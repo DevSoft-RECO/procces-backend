@@ -32,7 +32,10 @@ class SolicitudRetiroController extends Controller
 
         if (!$expediente) {
              // FALLBACK: Buscar en Expediente (Historicos)
-             $historico = \App\Models\Expediente::where('numero_documento', $termino)->first();
+             $historico = \App\Models\Expediente::where(function($query) use ($termino) {
+                 $query->where('numero_documento', $termino)
+                       ->orWhere('cta_bw', $termino);
+             })->first();
 
              if ($historico) {
                  return response()->json([
