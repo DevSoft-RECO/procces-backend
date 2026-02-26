@@ -182,6 +182,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::delete('/solicitudes-retiro/{id}', [SolicitudRetiroController::class, 'destroy']); // Delete Route
     Route::post('/solicitudes-retiro/{id}/confirm-receipt', [SolicitudRetiroController::class, 'confirmReceipt']);
     Route::post('/solicitudes-retiro/{id}/deliver', [SolicitudRetiroController::class, 'deliverToAssociate']);
+    Route::get('/solicitudes-retiro/{id}/ver-evidencia', [SolicitudRetiroController::class, 'verEvidencia']);
     Route::post('/solicitudes-retiro/{id}/return-archive', [SolicitudRetiroController::class, 'returnToArchive']); // New Route
     Route::post('/solicitudes-retiro/{id}/confirm-return', [SolicitudRetiroController::class, 'confirmReturn']);
     Route::post('/solicitudes-retiro/{id}/register-document', [SolicitudRetiroController::class, 'registerDocument']); // New Route for Historical

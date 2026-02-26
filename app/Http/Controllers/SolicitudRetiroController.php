@@ -12,6 +12,8 @@ use Carbon\Carbon;
 
 class SolicitudRetiroController extends Controller
 {
+    protected $disk = 'gcs';
+
     /**
      * Search for a document and validate its availability.
      */
@@ -506,22 +508,36 @@ class SolicitudRetiroController extends Controller
         try {
             if ($request->hasFile('evidencia')) {
                 $file = $request->file('evidencia');
-                $filename = 'entrega_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
-                // Guardar en public/uploads/evidencia
-                $file->move(public_path('uploads/evidencia'), $filename);
 
-                $solicitud->evidencia_entrega_path = 'uploads/evidencia/' . $filename;
+                // Obtener numero_documento desde la relación expediente (si existe) o fallback
+                $numDoc = 'S-N';
+                if ($solicitud->id_expediente) {
+                    $expediente = \App\Models\NuevoExpediente::find($solicitud->id_expediente);
+                    if ($expediente) {
+                        $numDoc = $expediente->numero_documento ?? 'S-N';
+                    }
+                } else {
+                    $numDoc = $solicitud->numero_documento ?? 'S-N';
+                }
+
+                $extension = $file->getClientOriginalExtension();
+                $filename = "EVI-{$numDoc}.{$extension}";
+
+                // Guardar en GCS
+                $folder = 'sadec/retiro_garantia';
+                $path = \Illuminate\Support\Facades\Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
+
+                $solicitud->evidencia_entrega_path = $path;
             }
 
             $solicitud->estado_actual = 5; // Entregado
             $solicitud->id_usuario_entrega = Auth::id(); // Usuario que hace la entrega
-            // updated_at servirá como fecha de entrega
             $solicitud->save();
 
             return response()->json(['message' => 'Entrega finalizada correctamente', 'data' => $solicitud]);
 
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al subir evidencia: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Error al subir evidencia a GCS: ' . $e->getMessage()], 500);
         }
     }
 
@@ -635,6 +651,33 @@ class SolicitudRetiroController extends Controller
         }
 
         return response()->json(['message' => 'Retorno confirmado. Garantía archivada nuevamente.', 'data' => $solicitud]);
+    }
+
+    /**
+     * Ver/Descargar la evidencia de entrega.
+     */
+    public function verEvidencia($id)
+    {
+        $solicitud = \App\Models\SolicitudRetiro::find($id);
+
+        if (!$solicitud || !$solicitud->evidencia_entrega_path) {
+            return response()->json(['message' => 'Evidencia no encontrada.'], 404);
+        }
+
+        if (!\Illuminate\Support\Facades\Storage::disk($this->disk)->exists($solicitud->evidencia_entrega_path)) {
+            return response()->json(['message' => 'El archivo físico no existe en el almacenamiento.'], 404);
+        }
+
+        // Generar URL firmada temporal por 15 segundos
+        $url = \Illuminate\Support\Facades\Storage::disk($this->disk)->temporaryUrl(
+            $solicitud->evidencia_entrega_path,
+            now()->addSeconds(15)
+        );
+
+        return response()->json([
+            'success' => true,
+            'url' => $url
+        ]);
     }
 
     /**
