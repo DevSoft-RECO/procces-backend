@@ -298,14 +298,10 @@ class SecretariaCreditoController extends Controller
             DB::beginTransaction();
 
             $expedienteId = $request->id;
+            $expediente = NuevoExpediente::findOrFail($expedienteId);
             $file = $request->file('file');
 
-            // 1. Guardar el archivo en GCS bajo la carpeta principal sadec
-            $folder = 'sadec/expedientes/contratos_escaneados';
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
-
-            // 2. Buscar el último seguimiento (Debería ser el estado 10)
+            // 1. Buscar el último seguimiento (Debería ser el estado 10) para obtener el numero_contrato
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
                             ->orderBy('created_at', 'desc')
                             ->first();
@@ -314,6 +310,15 @@ class SecretariaCreditoController extends Controller
                 // Should not happen if flow is correct
                 throw new \Exception("No se encontró seguimiento para el expediente.");
             }
+
+            // Nomenclatura Estándar: CTO-numero_documento.ext
+            $extension = $file->getClientOriginalExtension();
+            $numDoc = $expediente->numero_documento ?? 'S-N';
+            $filename = "CTO-{$numDoc}.{$extension}";
+
+            // 2. Guardar el archivo en GCS bajo la carpeta principal sadec
+            $folder = 'sadec/expedientes/contratos_escaneados';
+            $path = Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
 
             // 3. Actualizar el campo path_contrato
             $seguimiento->path_contrato = $path;
@@ -352,10 +357,10 @@ class SecretariaCreditoController extends Controller
             return response()->json(['message' => 'Contrato no encontrado.'], 404);
         }
 
-        // Generar URL firmada temporal por 20 minutos
+        // Generar URL firmada temporal por 15 segundos
         $url = Storage::disk($this->disk)->temporaryUrl(
             $seguimiento->path_contrato,
-            now()->addMinutes(20)
+            now()->addSeconds(15)
         );
 
         return response()->json([
