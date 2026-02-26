@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Storage;
 
 class SecretariaCreditoController extends Controller
 {
+    protected $disk = 'gcs';
+
     /**
      * Listado de expedientes en estado 5 (Enviado a Protocolos).
      */
@@ -298,10 +300,10 @@ class SecretariaCreditoController extends Controller
             $expedienteId = $request->id;
             $file = $request->file('file');
 
-            // 1. Guardar el archivo físico directamente en public
+            // 1. Guardar el archivo en GCS bajo la carpeta principal sadec
+            $folder = 'sadec/expedientes/contratos_escaneados';
             $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('expedientes/contratos_escaneados'), $filename);
-            $path = 'expedientes/contratos_escaneados/' . $filename;
+            $path = Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
 
             // 2. Buscar el último seguimiento (Debería ser el estado 10)
             $seguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expedienteId)
@@ -346,14 +348,16 @@ class SecretariaCreditoController extends Controller
                         ->orderBy('created_at', 'desc')
                         ->first();
 
-        $path = public_path($seguimiento->path_contrato);
-
-        if (!$seguimiento || !file_exists($path)) {
+        if (!$seguimiento || !Storage::disk($this->disk)->exists($seguimiento->path_contrato)) {
             return response()->json(['message' => 'Contrato no encontrado.'], 404);
         }
 
-        // Return asset URL for frontend to open
-        $url = asset($seguimiento->path_contrato);
+        // Generar URL firmada temporal por 20 minutos
+        $url = Storage::disk($this->disk)->temporaryUrl(
+            $seguimiento->path_contrato,
+            now()->addMinutes(20)
+        );
+
         return response()->json([
             'success' => true,
             'url' => $url
