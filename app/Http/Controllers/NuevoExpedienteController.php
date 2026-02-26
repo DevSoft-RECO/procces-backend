@@ -237,26 +237,61 @@ public function addDocumento(Request $request, $id)
             }
 
             // VALIDACIÓN DE EDICIÓN:
-            // Permitir si:
-            // 1. Estado es 2 (Retornado)
-            // 2. O NO tiene seguimientos (Nuevo / Aún no enviado)
             $lastSeguimiento = $expediente->seguimientos()->latest()->first();
             $currentState = $lastSeguimiento ? $lastSeguimiento->id_estado : 0;
             $hasTracking = $expediente->seguimientos()->exists();
 
             if (($currentState == 2 || !$hasTracking) && $documento->nuevosExpedientes()->count() <= 1) {
-                // Actualizamos con los datos que vienen del formulario
+                // Validación dinámica para actualización
+                $tipoDoc = \App\Models\TipoDocumento::find($request->input('tipo_documento_id', $documento->tipo_documento_id));
+                $rules = [
+                    'numero' => 'sometimes|required|string',
+                    'fecha' => 'sometimes|required|date',
+                    'tipo_documento_id' => 'sometimes|required|exists:tipo_documentos,id',
+                ];
+
+                if ($tipoDoc && $tipoDoc->config_campos) {
+                    foreach ($tipoDoc->config_campos as $campo => $config) {
+                        if (in_array($campo, ['numero', 'fecha', 'tipo_documento_id'])) continue;
+                        if ($config == '1' || $config === true || $config == 'required') {
+                            $rules[$campo] = 'required';
+                        } else {
+                            $rules[$campo] = 'nullable';
+                        }
+                    }
+                }
+                $request->validate($rules);
+
                 $documento->update($request->all());
                 $action = 'actualizado y vinculado';
             }
 
             $expediente->documentos()->syncWithoutDetaching([$docId]);
         } else {
-            // Lógica de creación normal
-            $request->validate([
+            // Lógica de creación con Validación dinámica
+            $tipoDoc = \App\Models\TipoDocumento::find($request->tipo_documento_id);
+
+            $rules = [
+                'numero' => 'required|string',
+                'fecha' => 'required|date',
                 'tipo_documento_id' => 'required|exists:tipo_documentos,id',
-                'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
-            ]);
+            ];
+
+            if ($tipoDoc && $tipoDoc->config_campos) {
+                foreach ($tipoDoc->config_campos as $campo => $config) {
+                    if (in_array($campo, ['numero', 'fecha', 'tipo_documento_id'])) continue;
+                    if ($config == '1' || $config === true || $config == 'required') {
+                        $rules[$campo] = 'required';
+                    } else {
+                        $rules[$campo] = 'nullable';
+                    }
+                }
+            } else {
+                // Fallback si no hay config
+                $rules['registro_propiedad_id'] = 'required|exists:registro_propiedads,id';
+            }
+
+            $request->validate($rules);
 
             $documento = \App\Models\Documento::create($request->all());
             $expediente->documentos()->attach($documento->id);
