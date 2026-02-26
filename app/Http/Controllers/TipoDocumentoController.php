@@ -31,6 +31,7 @@ class TipoDocumentoController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'config_campos' => 'nullable|array',
         ]);
 
         $tipoDocumento = TipoDocumento::create($request->all());
@@ -62,6 +63,7 @@ class TipoDocumentoController extends Controller
 
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'config_campos' => 'nullable|array',
         ]);
 
         $tipoDocumento->update($request->all());

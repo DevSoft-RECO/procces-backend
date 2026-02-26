@@ -9,5 +9,9 @@ class TipoDocumento extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre'];
+    protected $fillable = ['nombre', 'config_campos'];
+
+    protected $casts = [
+        'config_campos' => 'array',
+    ];
 }
