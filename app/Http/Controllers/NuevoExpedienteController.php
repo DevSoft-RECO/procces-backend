@@ -250,6 +250,14 @@ public function addDocumento(Request $request, $id)
                     'tipo_documento_id' => 'sometimes|required|exists:tipo_documentos,id',
                 ];
 
+                $fieldsToClean = [
+                    'propietario', 'autorizador', 'no_finca', 'folio', 'libro',
+                    'no_dominio', 'referencia', 'monto_poliza', 'observacion',
+                    'registro_propiedad_id'
+                ];
+
+                $data = $request->all();
+
                 if ($tipoDoc && $tipoDoc->config_campos) {
                     foreach ($tipoDoc->config_campos as $campo => $config) {
                         if (in_array($campo, ['numero', 'fecha', 'tipo_documento_id'])) continue;
@@ -259,10 +267,19 @@ public function addDocumento(Request $request, $id)
                             $rules[$campo] = 'nullable';
                         }
                     }
+
+                    // Limpiar campos que NO están activos o marcados como 0/hidden
+                    foreach ($fieldsToClean as $campo) {
+                        $config = $tipoDoc->config_campos[$campo] ?? '0';
+                        if ($config == '0' || $config === false || $config == 'hidden') {
+                            $data[$campo] = null;
+                        }
+                    }
                 }
+
                 $request->validate($rules);
 
-                $documento->update($request->all());
+                $documento->update($data);
                 $action = 'actualizado y vinculado';
             }
 
@@ -277,6 +294,14 @@ public function addDocumento(Request $request, $id)
                 'tipo_documento_id' => 'required|exists:tipo_documentos,id',
             ];
 
+            $fieldsToClean = [
+                'propietario', 'autorizador', 'no_finca', 'folio', 'libro',
+                'no_dominio', 'referencia', 'monto_poliza', 'observacion',
+                'registro_propiedad_id'
+            ];
+
+            $data = $request->all();
+
             if ($tipoDoc && $tipoDoc->config_campos) {
                 foreach ($tipoDoc->config_campos as $campo => $config) {
                     if (in_array($campo, ['numero', 'fecha', 'tipo_documento_id'])) continue;
@@ -286,6 +311,14 @@ public function addDocumento(Request $request, $id)
                         $rules[$campo] = 'nullable';
                     }
                 }
+
+                // Limpiar campos que NO están activos
+                foreach ($fieldsToClean as $campo) {
+                    $config = $tipoDoc->config_campos[$campo] ?? '0';
+                    if ($config == '0' || $config === false || $config == 'hidden') {
+                        $data[$campo] = null;
+                    }
+                }
             } else {
                 // Fallback si no hay config
                 $rules['registro_propiedad_id'] = 'required|exists:registro_propiedads,id';
@@ -293,7 +326,7 @@ public function addDocumento(Request $request, $id)
 
             $request->validate($rules);
 
-            $documento = \App\Models\Documento::create($request->all());
+            $documento = \App\Models\Documento::create($data);
             $expediente->documentos()->attach($documento->id);
             $action = 'creado y vinculado';
         }
