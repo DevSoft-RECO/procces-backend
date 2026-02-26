@@ -223,4 +223,9 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/solicitud-administrativa-edicion/search', [App\Http\Controllers\SolicitudAdministrativaEdicionController::class, 'search']);
     Route::get('/solicitud-administrativa-edicion/catalogs', [App\Http\Controllers\SolicitudAdministrativaEdicionController::class, 'getCatalogs']);
     Route::put('/solicitud-administrativa-edicion/{id}', [App\Http\Controllers\SolicitudAdministrativaEdicionController::class, 'update']);
+
+    // Edición de Solicitud de Retiro (Garantías)
+    Route::get('/solicitud-retiro-edicion/search', [App\Http\Controllers\SolicitudRetiroEdicionController::class, 'search']);
+    Route::get('/solicitud-retiro-edicion/catalogs', [App\Http\Controllers\SolicitudRetiroEdicionController::class, 'getCatalogs']);
+    Route::put('/solicitud-retiro-edicion/{id}', [App\Http\Controllers\SolicitudRetiroEdicionController::class, 'update']);
 });
