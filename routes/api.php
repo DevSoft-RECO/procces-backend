@@ -210,4 +210,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/confirmacion-documentos/resultados', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'indexResults']);
     Route::get('/confirmacion-documentos/historico', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'indexHistory']);
     Route::put('/confirmacion-documentos/{id}/archive', [\App\Http\Controllers\SolicitudConfirmacion\ConfirmacionDocController::class, 'archive']);
+
+    // Edición de Documentos (Garantías)
+    Route::get('/documentos-edicion/search', [App\Http\Controllers\DocumentoEdicionController::class, 'search']);
+    Route::put('/documentos-edicion/{id}', [App\Http\Controllers\DocumentoEdicionController::class, 'update']);
 });

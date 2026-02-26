@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Documento;
+use Illuminate\Http\Request;
+
+class DocumentoEdicionController extends Controller
+{
+    /**
+     * Search for documents by number and date.
+     */
+    public function search(Request $request)
+    {
+        $request->validate([
+            'numero' => 'required|string',
+            'fecha' => 'required|date',
+        ]);
+
+        $numero = $request->input('numero');
+        $fecha = $request->input('fecha');
+
+        $documentos = Documento::with(['tipoDocumento', 'registroPropiedad'])
+            ->where('numero', $numero)
+            ->whereDate('fecha', $fecha)
+            ->get();
+
+        return response()->json($documentos);
+    }
+
+    /**
+     * Update the specified document.
+     */
+    public function update(Request $request, $id)
+    {
+        $documento = Documento::findOrFail($id);
+
+        $validatedData = $request->validate([
+            'numero' => 'sometimes|required|string',
+            'fecha' => 'sometimes|required|date',
+            'propietario' => 'sometimes|required|string',
+            'autorizador' => 'nullable|string',
+            'no_finca' => 'nullable|string',
+            'folio' => 'nullable|string',
+            'libro' => 'nullable|string',
+            'no_dominio' => 'nullable|string',
+            'referencia' => 'nullable|string',
+            'monto_poliza' => 'nullable|numeric',
+            'observacion' => 'nullable|string',
+            'tipo_documento_id' => 'sometimes|required|exists:tipo_documentos,id',
+            'registro_propiedad_id' => 'nullable|exists:registro_propiedads,id',
+            'estado' => 'sometimes|required|string',
+        ]);
+
+        $documento->update($validatedData);
+
+        return response()->json([
+            'message' => 'Documento actualizado correctamente',
+            'documento' => $documento
+        ]);
+    }
+}
