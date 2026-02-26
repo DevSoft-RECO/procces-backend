@@ -216,4 +216,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::put('/documentos-edicion/{id}', [App\Http\Controllers\DocumentoEdicionController::class, 'update']);
     Route::get('/detalle-garantia-edicion/search', [App\Http\Controllers\DetalleGarantiaEdicionController::class, 'search']);
     Route::put('/detalle-garantia-edicion/{id}', [App\Http\Controllers\DetalleGarantiaEdicionController::class, 'update']);
+    Route::get('/nuevo-expediente-edicion/search', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'search']);
+    Route::get('/nuevo-expediente-edicion/catalogs', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'getCatalogs']);
+    Route::put('/nuevo-expediente-edicion/{id}', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'update']);
 });
