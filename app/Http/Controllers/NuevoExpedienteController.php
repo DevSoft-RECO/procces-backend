@@ -495,6 +495,18 @@ public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId
     {
         $query = NuevoExpediente::query();
 
+        // Filtrar expedientes para que solo vea los de su usuario (case insensitive)
+        // EXCEPCIÓN: Los Super Admin ven todo.
+        if (auth()->check() && auth()->user()->username) {
+            $user = auth()->user();
+            $roles = $user->roles_list ?? [];
+
+            if (!in_array('Super Admin', $roles)) {
+                $usernameStr = strtolower($user->username);
+                $query->whereRaw('LOWER(usuario_asesor) = ?', [$usernameStr]);
+            }
+        }
+
         // Filter by LATEST state = 11 (Finalizado / Pagare Recibido)
         $query->whereHas('seguimientos', function ($q) {
             $q->where('id_estado', 11)
