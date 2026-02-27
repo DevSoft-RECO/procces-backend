@@ -247,14 +247,6 @@ class SeguimientoController extends Controller
 
             $seguimiento->save();
 
-            // Actualizar fecha de envío a archivo (solo si se marca garantía real/envío físico)
-             if ($request->tiene_garantia_real) {
-                SeguimientoFecha::updateOrCreate(
-                    ['id_expediente' => $id],
-                    ['f_enviado_archivos' => Carbon::now()]
-                );
-             }
-
             DB::commit();
 
             return response()->json([
