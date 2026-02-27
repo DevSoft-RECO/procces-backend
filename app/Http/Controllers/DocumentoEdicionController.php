@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Documento;
+use App\Models\SeguimientoExpediente;
 use Illuminate\Http\Request;
 
 class DocumentoEdicionController extends Controller
@@ -53,6 +54,9 @@ class DocumentoEdicionController extends Controller
         ]);
 
         $documento->update($validatedData);
+
+        // Marcar todos los expedientes asociados como "con corrección"
+        SeguimientoExpediente::marcarModificacionPorDocumento($id);
 
         return response()->json([
             'message' => 'Documento actualizado correctamente',
