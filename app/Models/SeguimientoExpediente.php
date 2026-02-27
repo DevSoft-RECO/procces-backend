@@ -28,6 +28,7 @@ class SeguimientoExpediente extends Model
         'recibi_contrato',
         'observacion_legal',
         'archivado_at',
+        'modificacion',
     ];
 
     /**
@@ -65,5 +66,22 @@ class SeguimientoExpediente extends Model
     {
         // 'usuario_asesor' in nuevos_expedientes matches 'username' in users
         return $this->belongsTo(User::class, 'usuario_asesor', 'username');
+    }
+
+    /**
+     * Marca masivamente los expedientes asociados a un documento como modificados.
+     */
+    public static function marcarModificacionPorDocumento($documentoId)
+    {
+        // Obtener los IDs de expedientes vinculados a este documento desde la tabla pivot
+        $expedienteIds = \DB::table('documento_nuevo_expediente')
+            ->where('documento_id', $documentoId)
+            ->pluck('nuevo_expediente_id');
+
+        if ($expedienteIds->isNotEmpty()) {
+            // Actualizar masivamente la columna modificacion en la tabla seguimiento_expedientes
+            static::whereIn('id_expediente', $expedienteIds)
+                ->update(['modificacion' => 1]);
+        }
     }
 }
