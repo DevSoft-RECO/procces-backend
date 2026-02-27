@@ -366,44 +366,7 @@ public function addDocumento(Request $request, $id)
      * Actualizar documento existente.
      * Restricción: Solo si está asociado a 1 o menos expedientes.
      */
-    public function updateDocumento(Request $request, $id)
-    {
-        $documento = \App\Models\Documento::findOrFail($id);
 
-        // Security Check: Only allow edit if linked to 1 or fewer expedientes
-        // UNLESS the user has the special permission
-        if ($documento->nuevosExpedientes()->count() > 1) {
-            if (!$request->user()->tokenCan('editar_documentos_restringidos') &&
-                !$request->user()->hasPermissionTo('editar_documentos_restringidos')) { // Check both token (if using abilities) and direct permission
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Este documento está asociado a múltiples expedientes. No se puede editar directamente.'
-                ], 403);
-            }
-        }
-
-        $request->validate([
-            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
-            'registro_propiedad_id' => 'required|exists:registro_propiedads,id',
-            'numero' => 'nullable|string|max:30',
-            // Add other fields as necessary based on your model
-        ]);
-
-        try {
-            $documento->update($request->all());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Documento actualizado correctamente.'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar documento: ' . $e->getMessage()
-            ], 500);
-        }
-    }
 
     /**
      * Actualizar datos de la garantía en el expediente (pivot).
