@@ -18,13 +18,18 @@ class ImportNuevosExpedientesJob implements ShouldQueue
     protected $filePath;
     protected $jobId;
     protected $dates;
+    protected $fileName;
+    protected $userId;
 
-    public function __construct($filePath, $jobId, $dates = [])
+    public function __construct($filePath, $jobId, $dates = [], $fileName = null, $userId = null)
     {
         $this->filePath = $filePath;
         $this->jobId = $jobId;
         $this->dates = $dates;
+        $this->fileName = $fileName;
+        $this->userId = $userId;
     }
+
 
     public function handle()
     {
@@ -42,6 +47,12 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 'progress' => 0,
                 'message' => 'Iniciando carga de nuevos expedientes...'
             ], 3600);
+
+            $lote = \App\Models\LoteImportacion::create([
+                'nombre_archivo' => $this->fileName,
+                'usuario_id' => $this->userId,
+                'registros_totales' => 0,
+            ]);
 
             $file = fopen($this->filePath, 'r');
             $batchSize = 250;
@@ -62,21 +73,21 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 '2604' => 4,
                 '2605 NENTON' => 5,
                 '2605' => 5,
-                '2606 TODOS SANTOS CUCHUMATÁN' => 6,
+                '2606 TODOS SANTOS CUCHUMATAN' => 6,
                 '2606' => 6,
                 '2607 HUEHUETENANGO' => 7,
                 '2607' => 7,
                 '2608 SAN MARCOS HUISTA' => 8,
                 '2608' => 8,
-                '2609 UNIÓN CANTINIL' => 9,
+                '2609 UNION CANTINIL' => 9,
                 '2609' => 9,
-                '2610 CONCEPCIÓN HUISTA' => 10,
+                '2610 CONCEPCION HUISTA' => 10,
                 '2610' => 10,
                 '2611 KAIBIL BALAM' => 11,
                 '2611' => 11,
                 '2612 LAS CRUCES' => 12,
                 '2612' => 12,
-                '2613 PETATÁN' => 13,
+                '2613 PETATAN' => 13,
                 '2613' => 13,
                 '2614 LA LIBERTAD' => 14,
                 '2614' => 14,
@@ -132,6 +143,7 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                     }
 
                     $data = [
+                        'id_lote'          => $lote->id,
                         'id_agencia'       => $agencyId,
                         'codigo_cliente'   => (int) preg_replace('/\D/', '', $row[1]),
                         'numero_documento' => $row[2] ?? null,
@@ -165,6 +177,10 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 DB::table('nuevos_expedientes')->insert($batchData);
                 $totalProcessed += count($batchData);
             }
+
+            // Update lote totals
+            $lote->update(['registros_totales' => $totalProcessed]);
+
 
             fclose($file);
             @unlink($this->filePath);

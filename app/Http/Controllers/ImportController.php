@@ -85,8 +85,11 @@ class ImportController extends Controller
                 'hasta' => $request->hasta,
             ];
 
+            $originalName = $file->getClientOriginalName();
+            $userId = auth()->id();
+
             // Dispatch Job
-            \App\Jobs\ImportNuevosExpedientesJob::dispatch($absolutePath, $jobId, $dates);
+            \App\Jobs\ImportNuevosExpedientesJob::dispatch($absolutePath, $jobId, $dates, $originalName, $userId);
 
             // Initialize cache
             $cacheKey = "import_nuevos_job_{$jobId}";

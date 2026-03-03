@@ -25,6 +25,7 @@ class NuevoExpediente extends Model
         'cui',
         'nombre_asociado',
         'estado',
+        'id_lote',
     ];
 
     protected $casts = [
@@ -95,5 +96,13 @@ class NuevoExpediente extends Model
     {
         // 'usuario_asesor' in nuevos_expedientes matches 'username' in users
         return $this->belongsTo(User::class, 'usuario_asesor', 'username');
+    }
+
+    /**
+     * Get the batch (lote) associated with the expediente.
+     */
+    public function lote()
+    {
+        return $this->belongsTo(LoteImportacion::class, 'id_lote');
     }
 }
