@@ -111,37 +111,100 @@ class AbogadoController extends Controller
      * List expedientes returned to Secretaria (State 10).
      */
 
-public function devueltos(Request $request)
-{
-    $user = $request->user();
-    $isSuperAdmin = $user->hasRole('Super Admin');
+    public function devueltos(Request $request)
+    {
+        $user = $request->user();
+        $isSuperAdmin = $user->hasRole('Super Admin');
 
-    // Iniciamos la consulta base con los campos optimizados
-    $query = NuevoExpediente::select([
-            'id',
-            'codigo_cliente',
-            'nombre_asociado',
-            'numero_documento'
-        ])
-        ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
 
-    // APLICACIÓN DE RESTRICCIONES
-    if (!$isSuperAdmin) {
-        // Si NO es admin, solo ve expedientes donde ÉL (su bufete)
-        // haya tenido participación en los seguimientos
-        $query->whereHas('seguimientos', function ($q) use ($user) {
-            $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
-            $q->where('bufete_id', $bufeteId);
-        });
-    } else {
-        // Si ES Super Admin, solo nos aseguramos de que el expediente
-        // tenga al menos un seguimiento (para que sea un expediente con historial)
-        $query->has('seguimientos');
+        // Iniciamos la consulta base con los campos optimizados
+        $query = NuevoExpediente::select([
+                'id',
+                'codigo_cliente',
+                'nombre_asociado',
+                'numero_documento'
+            ])
+            ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
+
+        // APLICACIÓN DE RESTRICCIONES DE ROL
+        if (!$isSuperAdmin) {
+            $query->whereHas('seguimientos', function ($q) use ($user) {
+                $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
+                $q->where('bufete_id', $bufeteId);
+            });
+        } else {
+            $query->has('seguimientos');
+        }
+
+        // FILTRADO POR FECHAS (sobre el campo f_enviado_secretaria_credito en la relación fechas)
+        if ($fechaInicio && $fechaFin) {
+            $query->whereHas('fechas', function ($q) use ($fechaInicio, $fechaFin) {
+                $q->whereBetween('f_enviado_secretaria_credito', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
+            });
+        }
+
+        $expedientes = $query->latest()->paginate(15);
+
+        return response()->json($expedientes);
     }
 
-    $expedientes = $query->latest()->paginate(15);
+    public function exportarDevueltosCSV(Request $request)
+    {
+        $user = $request->user();
+        $isSuperAdmin = $user->hasRole('Super Admin');
 
-    return response()->json($expedientes);
-}
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+
+        $query = NuevoExpediente::select([
+                'id',
+                'codigo_cliente',
+                'nombre_asociado',
+                'numero_documento'
+            ])
+            ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
+
+        if (!$isSuperAdmin) {
+            $query->whereHas('seguimientos', function ($q) use ($user) {
+                $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
+                $q->where('bufete_id', $bufeteId);
+            });
+        } else {
+            $query->has('seguimientos');
+        }
+
+        if ($fechaInicio && $fechaFin) {
+            $query->whereHas('fechas', function ($q) use ($fechaInicio, $fechaFin) {
+                $q->whereBetween('f_enviado_secretaria_credito', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
+            });
+        }
+
+        $expedientes = $query->latest()->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="expedientes_devueltos.csv"',
+        ];
+
+        $callback = function () use ($expedientes) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID', 'Código Cliente', 'Nombre Asociado', 'Número Documento', 'Fecha Envío Secretaría']);
+
+            foreach ($expedientes as $exp) {
+                fputcsv($file, [
+                    $exp->id,
+                    $exp->codigo_cliente,
+                    $exp->nombre_asociado,
+                    $exp->numero_documento,
+                    $exp->fechas?->f_enviado_secretaria_credito ? $exp->fechas->f_enviado_secretaria_credito->format('d/m/Y H:i') : 'N/A'
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 
 }

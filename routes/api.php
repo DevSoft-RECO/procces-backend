@@ -123,6 +123,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/abogado/recibir', [App\Http\Controllers\AbogadoController::class, 'recibir']);
     Route::post('/abogado/enviar-secretaria', [App\Http\Controllers\AbogadoController::class, 'enviarSecretaria']);
     Route::get('/abogado/devueltos', [App\Http\Controllers\AbogadoController::class, 'devueltos']);
+    Route::get('/abogado/exportar-devueltos-csv', [App\Http\Controllers\AbogadoController::class, 'exportarDevueltosCSV']);
 
     Route::get('/secretaria-credito/escanear-documentos', [App\Http\Controllers\SecretariaCreditoController::class, 'escanearDocumentos']);
     Route::post('/secretaria-credito/guardar-escaneado', [App\Http\Controllers\SecretariaCreditoController::class, 'guardarEscaneado']);
