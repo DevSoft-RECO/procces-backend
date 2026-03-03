@@ -117,9 +117,9 @@ class ArchivoController extends Controller
         }
 
         // SEGURIDAD: Validar que realmente es un contrato antes de dejar marcar "recibido"
-        if ($seguimiento->tipo_contrato === 'Pagaré') {
-            return response()->json(['success' => false, 'message' => 'Este expediente es un Pagaré, no requiere contrato.'], 400);
-        }
+        // if ($seguimiento->tipo_contrato === 'Pagaré') {
+        //     return response()->json(['success' => false, 'message' => 'Este expediente es un Pagaré, no requiere contrato.'], 400);
+        // }
 
         $seguimiento->update([
             'recibi_contrato' => 'Si - ' . now()->format('d/m/Y H:i')
