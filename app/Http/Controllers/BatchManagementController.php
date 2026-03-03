@@ -26,6 +26,22 @@ class BatchManagementController extends Controller
     }
 
     /**
+     * Show basic information of records in a batch for preview.
+     */
+    public function show($id)
+    {
+        $records = NuevoExpediente::where('id_lote', $id)
+            ->select('id', 'codigo_cliente', 'nombre_asociado', 'numero_documento', 'created_at')
+            ->limit(500) // Safety limit for preview
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $records
+        ]);
+    }
+
+    /**
      * Delete a batch and all associated records.
      */
     public function destroy($id)

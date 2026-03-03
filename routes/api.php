@@ -79,7 +79,9 @@ Route::get('/import/status/{id}', [App\Http\Controllers\ImportController::class,
 Route::post('/import-nuevos/upload', [App\Http\Controllers\ImportController::class, 'uploadNuevos']);
 Route::get('/import-nuevos/status/{id}', [App\Http\Controllers\ImportController::class, 'statusNuevos']);
 Route::get('/import-nuevos/lotes', [App\Http\Controllers\BatchManagementController::class, 'index']);
+Route::get('/import-nuevos/lotes/{id}', [App\Http\Controllers\BatchManagementController::class, 'show']);
 Route::delete('/import-nuevos/lotes/{id}', [App\Http\Controllers\BatchManagementController::class, 'destroy']);
+
 
 Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'index']);
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
