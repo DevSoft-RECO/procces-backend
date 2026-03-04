@@ -50,6 +50,7 @@ class Documento extends Model
     public function nuevosExpedientes()
     {
         return $this->belongsToMany(NuevoExpediente::class, 'documento_nuevo_expediente', 'documento_id', 'nuevo_expediente_id')
+                    ->withPivot('estado')
                     ->withTimestamps();
     }
 }

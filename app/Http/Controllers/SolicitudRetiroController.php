@@ -19,18 +19,33 @@ class SolicitudRetiroController extends Controller
      */
     public function search(Request $request)
     {
-        $termino = $request->input('termino');
+        $termino = trim($request->input('termino'));
 
         if (!$termino) {
             return response()->json(['message' => 'Término de búsqueda requerido'], 400);
         }
 
-        // 1. Buscar en NuevoExpediente por número de documento
-        // Cargamos también los documentos asociados para validación y retorno
+        // 1. Buscar en NuevoExpediente por número de documento o código de cliente
+        // Priorizar el expediente que SÍ tiene documentos si existen registros duplicados
         $expediente = NuevoExpediente::with(['documentos.tipoDocumento', 'documentos.registroPropiedad'])
-            ->where('numero_documento', $termino)
+            ->where(function($q) use ($termino) {
+                $q->where('numero_documento', $termino)
+                  ->orWhere('codigo_cliente', $termino);
+            })
+            ->whereHas('documentos')
             ->latest()
             ->first();
+
+        // Fallback: Si no se encontró ninguno con documentos, traer el más reciente que coincida
+        if (!$expediente) {
+            $expediente = NuevoExpediente::with(['documentos.tipoDocumento', 'documentos.registroPropiedad'])
+                ->where(function($q) use ($termino) {
+                    $q->where('numero_documento', $termino)
+                      ->orWhere('codigo_cliente', $termino);
+                })
+                ->latest()
+                ->first();
+        }
 
         if (!$expediente) {
              // FALLBACK: Buscar en Expediente (Historicos)
@@ -69,10 +84,8 @@ class SolicitudRetiroController extends Controller
             ]);
         }
 
-        // 2. CASO 3: Validar que exista en SeguimientoExpediente
-        $tieneSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expediente->id)->exists();
-
-        if (!$tieneSeguimiento) {
+        // 2. CASO 3: Validar que el expediente realmente tenga documentos (garantías) vinculados
+        if ($expediente->documentos->isEmpty()) {
              return response()->json([
                 'error' => true,
                 'message' => 'El expediente existe pero no tiene garantías asociadas aún.',
@@ -80,20 +93,34 @@ class SolicitudRetiroController extends Controller
             ]);
         }
 
-        // 3. Obtener documentos y adjuntar metadatos de estado (Sin boqueos, solo info)
+        // 3. Obtener documentos y adjuntar metadatos de estado y reglas pivot
         $documentosProcesados = $expediente->documentos->map(function($doc) use ($expediente) {
-            // Verificar si este documento está vinculado a OTROS expedientes que estén ACTIVOS
-            $otrosActivos = $doc->nuevosExpedientes()
-                ->where('nuevos_expedientes.id', '!=', $expediente->id)
-                ->where('nuevos_expedientes.estado', 'activo')
-                ->get(['nuevos_expedientes.numero_documento', 'nuevos_expedientes.estado', 'nuevos_expedientes.nombre_asociado']);
 
-            $doc->tiene_otros_activos = $otrosActivos->isNotEmpty();
-            // Map to a structure we can easily display
-            $doc->otros_activos_lista = $otrosActivos->map(function($exp) {
+            // Reglas de Pivot (estado_fisico = activo, temporal, definitivo)
+            $doc->estado_fisico = $doc->estado;
+
+            $relations = $doc->nuevosExpedientes;
+
+            $otrosActivosDesc = $relations->filter(function($exp) use ($expediente) {
+                return $exp->id !== $expediente->id && $exp->pivot->estado === 'activo';
+            });
+
+            $doc->tiene_otros_activos = $otrosActivosDesc->isNotEmpty();
+
+            $totalActivos = $relations->filter(function ($exp) {
+                return $exp->pivot->estado === 'activo';
+            })->count();
+
+            // Retiro definitivo permitido si NO está amarrado a OTROS expedientes activos
+            $doc->permite_definitivo = !$doc->tiene_otros_activos;
+            // Retiro temporal permitido si al menos tiene UN expediente activo
+            $doc->permite_temporal = $totalActivos > 0;
+
+            $doc->otros_activos_lista = $otrosActivosDesc->map(function($exp) {
                 return [
                     'numero' => $exp->numero_documento,
-                    'nombre' => $exp->nombre_asociado
+                    'nombre' => $exp->nombre_asociado,
+                    'pivot_estado' => $exp->pivot->estado
                 ];
             });
 
@@ -147,36 +174,46 @@ class SolicitudRetiroController extends Controller
             }
 
             if ($expediente) {
-                // Validación 1: Estado del expediente ACTUAL
-                /*
-                if ($expediente->estado == 'activo') {
-                    return response()->json(['message' => 'El expediente asociado aún se encuentra activo.'], 422);
-                }
-                */
-
-                // Validación 2: Seguimiento
-                $tieneSeguimiento = \App\Models\SeguimientoExpediente::where('id_expediente', $expediente->id)->exists();
-                if (!$tieneSeguimiento) {
+                // Validación 1: Garantías vinculadas
+                $expediente->load('documentos');
+                if ($expediente->documentos->isEmpty()) {
                     return response()->json(['message' => 'El expediente existe pero no tiene garantías asociadas aún.'], 422);
                 }
 
-                // Validación 3: Otros Activos (Documentos compartidos)
-                // Cargar documentos para verificar cruces
-                /*
-                $expediente->load('documentos');
-                if ($expediente->documentos->isNotEmpty()) {
-                    foreach ($expediente->documentos as $doc) {
-                        $otrosActivos = $doc->nuevosExpedientes()
-                            ->where('nuevos_expedientes.id', '!=', $expediente->id)
-                            ->where('nuevos_expedientes.estado', 'activo')
-                            ->exists();
+                // Buscar el documento específico solicitado
+                $documento = $expediente->documentos->firstWhere('numero', $numeroDoc);
 
-                        if ($otrosActivos) {
-                            return response()->json(['message' => "El documento {$doc->numero} está amarrado a otro expediente activo."], 422);
-                        }
+                if (!$documento) {
+                    return response()->json(['message' => 'El documento no pertenece a este expediente.'], 422);
+                }
+
+                // Validación 2: Estado físico del documento
+                if ($documento->estado !== 'activo') {
+                    return response()->json(['message' => "El documento actualmente se encuentra en estado '{$documento->estado}' y no puede ser solicitado."], 422);
+                }
+
+                // Validación 3: Reglas de Retiro (Temporal vs Definitivo) según la tabla pivot
+                $relations = $documento->nuevosExpedientes; // Obtiene todos los expedientes vinculados a este documento
+
+                $tieneOtrosActivos = $relations->filter(function($exp) use ($expediente) {
+                    return $exp->id !== $expediente->id && $exp->pivot->estado === 'activo';
+                })->isNotEmpty();
+
+                $totalActivos = $relations->filter(function ($exp) {
+                    return $exp->pivot->estado === 'activo';
+                })->count();
+
+                if ($request->tipo_retiro === 'Definitivo') {
+                    // Retiro Definitivo: Se permite solo si NO hay OTROS expedientes activos
+                    if ($tieneOtrosActivos) {
+                         return response()->json(['message' => 'No se puede solicitar un Retiro Definitivo porque el documento aún está vinculado a otros expedientes en estado activo.'], 422);
+                    }
+                } else if ($request->tipo_retiro === 'Temporal') {
+                    // Retiro Temporal: Requiere que al menos UNO esté 'activo'
+                    if ($totalActivos === 0) {
+                        return response()->json(['message' => 'No se puede solicitar un Retiro Temporal porque el documento ya no posee ningún expediente en estado activo. Considere un Retiro Definitivo.'], 422);
                     }
                 }
-                */
             } else {
                 // Si no se encuentra expediente pero no es manual, es sospechoso, pero mantendremos la lógica simple
                 // Si llegamos aqui es porque el search encontró algo (o es manual=false)
