@@ -92,7 +92,7 @@ class NuevoExpedienteController extends Controller
             'observacion1' => 'nullable|string|max:200',
             'observacion2' => 'nullable|string|max:200',
             'observacion3' => 'nullable|string|max:200',
-            'observacion4' => 'nullable|string|max:200',
+            'observacion4' => 'nullable|string|max:400',
         ]);
 
         $expediente = NuevoExpediente::findOrFail($id);

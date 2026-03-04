@@ -40,7 +40,7 @@ return new class extends Migration
             $table->string('observacion1', 200)->nullable();
             $table->string('observacion2', 200)->nullable();
             $table->string('observacion3', 200)->nullable();
-            $table->string('observacion4', 200)->nullable();
+            $table->string('observacion4', 400)->nullable();
 
             $table->timestamps();
         });
