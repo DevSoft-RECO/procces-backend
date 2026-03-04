@@ -245,5 +245,10 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::prefix('admin')->group(function () {
         Route::get('/desvinculacion/buscar-expediente', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'searchByExpediente']);
         Route::delete('/desvinculacion/unlink', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'unlink']);
+
+        // Cancelación de Crédito
+        Route::get('/cancelar-credito/search', [\App\Http\Controllers\CancelarCreditoController::class, 'search']);
+        Route::post('/cancelar-credito/{id}/toggle', [\App\Http\Controllers\CancelarCreditoController::class, 'toggleStatus']);
     });
 });
+
