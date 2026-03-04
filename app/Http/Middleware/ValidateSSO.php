@@ -43,7 +43,7 @@ class ValidateSSO
                     'email' => $userData['email'],
                     'username' => $userData['username'] ?? null,
                     'telefono' => $userData['telefono'] ?? null,
-                    // timestamps se manejan solos
+                    'id_agencia' => $userData['agencia']['id'] ?? null,
                 ]
             );
 

@@ -28,6 +28,7 @@ class User extends Authenticatable
         'username',
         'email',
         'telefono',
+        'id_agencia',
     ];
 
     /**
@@ -70,7 +71,7 @@ class User extends Authenticatable
     }
 
     public function getAgenciaId() {
-        return $this->agencia_data['id'] ?? null;
+        return $this->id_agencia ?? ($this->agencia_data['id'] ?? null);
     }
 
     // En App\Models\User.php

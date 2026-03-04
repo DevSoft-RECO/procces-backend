@@ -61,9 +61,10 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+
     /**
      * Obtener expedientes en el buzón de Secretaría.
-     * Filtra por el ÚLTIMO estado registrado.
+     * MODULO SECREATRIA DE CREDITOS-----------
      * Default: 1 (Enviado a Secretaria).
      * Puede usarse para 2 (Rechazado/Regresado) también.
      */
@@ -77,7 +78,7 @@ class SeguimientoController extends Controller
         if (auth()->check()) {
             $user = auth()->user();
             $roles = $user->roles_list ?? [];
-            $userAgenciaId = $user->id_agencia ?? $user->agencia_id;
+            $userAgenciaId = $user->id_agencia;
 
             if (!in_array('Super Admin', $roles) && $userAgenciaId) {
                 $query->where('id_agencia', $userAgenciaId);
@@ -164,6 +165,7 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+
     /**
      * Aceptar expediente (Estado 3).
      * Esto habilita la opción de enviar a archivo.
@@ -207,6 +209,7 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+
     /**
      * Enviar a Archivo (Estado 1 -> 4 si es garantía real, o solo marcar enviado).
      */
@@ -306,6 +309,7 @@ class SeguimientoController extends Controller
             ], 500);
         }
     }
+
     /**
      * Actualizar Observación Legal (Sin cambiar estado).
      */

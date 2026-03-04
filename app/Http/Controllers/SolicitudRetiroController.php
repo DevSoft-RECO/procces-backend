@@ -231,7 +231,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID enviado desde frontend (Auth Store) y luego el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
         // Si el usuario no tiene agencia, retornar error o vacio
         if (!$agencyId) {
@@ -255,7 +255,7 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
         if (!$agencyId) {
              return response()->json(['data' => []]);
@@ -413,7 +413,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID desde request o usar el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
         if (!$agencyId) {
             return response()->json(['data' => []]);
@@ -464,7 +464,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID desde request o usar el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
         if (!$agencyId) {
             return response()->json(['data' => []]);
@@ -548,7 +548,7 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia ?? $user->getAgenciaId();
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
         $role = $request->input('role'); // 'local_delivery' | 'external_delivery' | 'request'
 
         if (!$agencyId) {
