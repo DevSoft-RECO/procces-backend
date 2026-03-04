@@ -240,4 +240,10 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/confirmacion-garantias-edicion/search', [App\Http\Controllers\ConfirmacionDocumentoEdicionController::class, 'search']);
     Route::get('/confirmacion-garantias-edicion/catalogs', [App\Http\Controllers\ConfirmacionDocumentoEdicionController::class, 'getCatalogs']);
     Route::put('/confirmacion-garantias-edicion/{id}', [App\Http\Controllers\ConfirmacionDocumentoEdicionController::class, 'update']);
+
+    // Desvinculación de Garantías (Administrativo)
+    Route::prefix('admin')->group(function () {
+        Route::get('/desvinculacion/buscar-expediente', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'searchByExpediente']);
+        Route::delete('/desvinculacion/unlink', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'unlink']);
+    });
 });
