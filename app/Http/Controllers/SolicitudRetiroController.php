@@ -154,6 +154,7 @@ class SolicitudRetiroController extends Controller
             'id_expediente' => 'nullable|exists:nuevos_expedientes,id',
             'id_expediente_historico' => 'nullable|exists:expedientes,id',
             'titulo_nombre' => 'required|string',
+            'id_documento' => 'nullable|exists:documentos,id',
         ]);
 
         $user = Auth::user();
@@ -181,7 +182,11 @@ class SolicitudRetiroController extends Controller
                 }
 
                 // Buscar el documento específico solicitado
-                $documento = $expediente->documentos->firstWhere('numero', $numeroDoc);
+                if ($request->id_documento) {
+                    $documento = $expediente->documentos->firstWhere('id', $request->id_documento);
+                } else {
+                    $documento = $expediente->documentos->firstWhere('numero', $numeroDoc);
+                }
 
                 if (!$documento) {
                     return response()->json(['message' => 'El documento no pertenece a este expediente.'], 422);
@@ -226,8 +231,8 @@ class SolicitudRetiroController extends Controller
             DB::beginTransaction();
 
             // Buscar el documento real para amarrar el ID físico
-            $documentoId = null;
-            if ($request->numero_documento) {
+            $documentoId = $request->id_documento;
+            if (!$documentoId && $request->numero_documento) {
                 $doc = \App\Models\Documento::where('numero', $request->numero_documento)->first();
                 if ($doc) {
                     $documentoId = $doc->id;
