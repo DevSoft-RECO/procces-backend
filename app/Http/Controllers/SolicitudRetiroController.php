@@ -116,7 +116,7 @@ class SolicitudRetiroController extends Controller
             // Retiro temporal permitido si al menos tiene UN expediente activo
             $doc->permite_temporal = $totalActivos > 0;
 
-            $doc->otros_activos_lista = $otrosActivosDesc->map(function($exp) {
+            $doc->otros_activos_lista = $otrosActivosDesc->values()->map(function($exp) {
                 return [
                     'numero' => $exp->numero_documento,
                     'nombre' => $exp->nombre_asociado,
