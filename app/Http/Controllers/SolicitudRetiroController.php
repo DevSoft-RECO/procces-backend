@@ -60,6 +60,8 @@ class SolicitudRetiroController extends Controller
                      'source' => 'historico',
                      'data' => [
                          'numero_documento' => $historico->numero_documento,
+                         'codigo_cliente' => $historico->codigo_cliente,
+                         'numero_producto' => $termino,
                          'titulo_nombre' => $historico->asociado,
                          'id_expediente' => null, // No hay ID de nuevo expediente
                          'id_expediente_historico' => $historico->id, // Agregar ID historico
@@ -79,6 +81,8 @@ class SolicitudRetiroController extends Controller
                 'message' => 'No se encontró ningún expediente con ese número de documento (Ni actual ni histórico).',
                 'data' => [
                     'numero_documento' => $termino,
+                    'codigo_cliente' => null,
+                    'numero_producto' => $termino,
                     'es_manual' => true
                 ]
             ]);
@@ -132,6 +136,8 @@ class SolicitudRetiroController extends Controller
             'found' => true,
             'data' => [
                 'numero_documento' => $expediente->numero_documento,
+                'codigo_cliente' => $expediente->codigo_cliente,
+                'numero_producto' => $termino,
                 'titulo_nombre' => $expediente->nombre_asociado,
                 'id_expediente' => $expediente->id,
                 'es_manual' => false,
@@ -148,6 +154,8 @@ class SolicitudRetiroController extends Controller
     {
         $request->validate([
             'numero_documento' => 'required|string',
+            'codigo_cliente' => 'nullable',
+            'numero_producto' => 'nullable',
             'tipo_retiro' => 'required|in:Temporal,Definitivo',
             'justificacion' => 'required|string',
             'es_manual' => 'boolean',
@@ -243,6 +251,8 @@ class SolicitudRetiroController extends Controller
                 'id_expediente' => $request->id_expediente,
                 'id_expediente_historico' => $request->id_expediente_historico,
                 'numero_documento' => $request->numero_documento,
+                'codigo_cliente' => $request->codigo_cliente,
+                'numero_producto' => $request->numero_producto,
                 'fecha_documento' => $request->fecha_documento, // Nuevo campo
                 'id_documento' => $documentoId,
                 'titulo_nombre' => $request->titulo_nombre,
@@ -368,6 +378,7 @@ class SolicitudRetiroController extends Controller
         $request->validate([
             'estado' => 'required|in:2,3', // 2=Temporal, 3=Definitivo
             'id_agencia_entrega' => 'required|exists:agencias,id',
+            'observacion_despacho' => 'nullable|string|max:300',
         ]);
 
         $solicitud = SolicitudRetiro::find($id);
@@ -380,6 +391,11 @@ class SolicitudRetiroController extends Controller
         $solicitud->id_usuario_despacho = Auth::id();
         $solicitud->fecha_envio = Carbon::now();
         $solicitud->id_agencia_entrega = $request->id_agencia_entrega;
+
+        if ($request->has('observacion_despacho')) {
+            $solicitud->observacion_despacho = $request->observacion_despacho;
+        }
+
         $solicitud->save();
 
         // Update document state for both system and registered historical documents
