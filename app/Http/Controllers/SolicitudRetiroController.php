@@ -338,9 +338,9 @@ class SolicitudRetiroController extends Controller
              $query->where('tipo_retiro', 'Temporal')
                    ->whereIn('estado_actual', [2, 4, 5]); // Enviado, Recibido, Entregado (Pero no Retorno)
         } elseif ($estado == 3) {
-             // Enviados Definitivos
+             // Enviados Definitivos (Excluye 5 - Entregado y 0 - Archivado)
              $query->where('tipo_retiro', 'Definitivo')
-                   ->where('estado_actual', '!=', 1);
+                   ->whereIn('estado_actual', [2, 3, 4]);
         } elseif ($estado == 4) {
              // Por Reingresar (Estado 6 - En Retorno)
              $query->where('estado_actual', 6);
