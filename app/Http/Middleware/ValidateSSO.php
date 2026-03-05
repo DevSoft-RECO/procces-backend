@@ -50,7 +50,7 @@ class ValidateSSO
             // 3. Inyectar Roles y Permisos (Transitorio, no BD)
             // Estos vienen frescos del token/servicio y se usan para gates/policies en este request
             $user->roles_list = $userData['roles'] ?? [];
-            $user->permissions_list = $userData['permissions'] ?? [];
+            $user->permissions_list = $userData['permissions'] ?? $userData['permisos'] ?? [];
             $user->agencia_data = $userData['agencia'] ?? null;
 
             // 4. Loguear al usuario en Laravel (Auth Facade)

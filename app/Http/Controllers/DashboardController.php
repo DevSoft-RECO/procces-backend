@@ -18,9 +18,13 @@ class DashboardController extends Controller
     {
          $user = Auth::user();
          if ($user->hasRole('Super Admin') || $user->hasPermissionTo('dashboard_general')) {
-             return $request->input('agency_id'); // Can be null (all agencies)
+             $agencyIds = $request->input('agency_id');
+             if ($agencyIds) {
+                 return is_array($agencyIds) ? $agencyIds : [$agencyIds];
+             }
+             return null; // Can be null (all agencies)
          }
-         return $user->id_agencia; // Force user's agency
+         return [$user->id_agencia]; // Force user's agency using array wrapper
     }
 
     /**
@@ -31,27 +35,27 @@ class DashboardController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
 
         $totalActive = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', '!=', 11); // Not Finalized
         })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
 
-        if ($agencyId) $totalActive->where('id_agencia', $agencyId);
+        if ($agencyIds) $totalActive->whereIn('id_agencia', $agencyIds);
         $totalActive = $totalActive->count();
 
         $totalFinalized = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', 11); // Finalized
         })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
 
-        if ($agencyId) $totalFinalized->where('id_agencia', $agencyId);
+        if ($agencyIds) $totalFinalized->whereIn('id_agencia', $agencyIds);
         $totalFinalized = $totalFinalized->count();
 
         // Monto: Filtrado por el mes
 
         // Monto: Filtrado por el mes
         $amountQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
-        if ($agencyId) $amountQuery->where('id_agencia', $agencyId);
+        if ($agencyIds) $amountQuery->whereIn('id_agencia', $agencyIds);
         $totalAmount = $amountQuery->sum('monto_documento');
 
         // Avg Time from Opening to Closing (Finalized Cases)
@@ -64,8 +68,8 @@ class DashboardController extends Controller
             ->whereNotNull('seguimiento_fechas.f_almacenado_admin')
             ->whereNotNull('nuevos_expedientes.fecha_inicio');
 
-        if ($agencyId) {
-            $avgDaysQuery->where('nuevos_expedientes.id_agencia', $agencyId);
+        if ($agencyIds) {
+            $avgDaysQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
         $avgDaysOpen = $avgDaysQuery
@@ -88,7 +92,7 @@ class DashboardController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
 
         // Group by Current State
         $query = NuevoExpediente::join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
@@ -97,8 +101,8 @@ class DashboardController extends Controller
             ->select('tipo_estados.nombre as state_name', DB::raw('count(*) as count'))
             ->where('seguimiento_expedientes.id_estado', '!=', 11); // Exclude Finalized for pipeline view
 
-        if ($agencyId) {
-            $query->where('nuevos_expedientes.id_agencia', $agencyId);
+        if ($agencyIds) {
+            $query->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
         $distribution = $query->groupBy('tipo_estados.nombre')
@@ -113,18 +117,19 @@ class DashboardController extends Controller
      */
     public function advisors(Request $request)
     {
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
 
         $query = NuevoExpediente::with('asesor')
-            ->select('usuario_asesor')
-            ->whereNotNull('usuario_asesor')
-            ->groupBy('usuario_asesor');
+                ->select('usuario_asesor')
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+                ->whereNotNull('usuario_asesor')
+                ->groupBy('usuario_asesor');
 
-        if ($agencyId) {
-            $query->where('id_agencia', $agencyId);
+        if ($agencyIds) {
+            $query->whereIn('id_agencia', $agencyIds);
         }
 
         $allAdvisors = $query->get();
@@ -137,8 +142,8 @@ class DashboardController extends Controller
 
             // Common query part
             $baseQuery = NuevoExpediente::where('usuario_asesor', $advisorId);
-            if ($agencyId) {
-                $baseQuery->where('id_agencia', $agencyId);
+            if ($agencyIds) {
+                $baseQuery->whereIn('id_agencia', $agencyIds);
             }
 
             $total = (clone $baseQuery)->count();
@@ -234,14 +239,14 @@ class DashboardController extends Controller
      */
     public function agencies(Request $request)
     {
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
 
         // If locked to a single agency, calculate only for that agency.
-        if ($agencyId) {
-            $agencies = \App\Models\Agencia::where('id', $agencyId)->get();
+        if ($agencyIds) {
+            $agencies = \App\Models\Agencia::whereIn('id', $agencyIds)->get();
         } else {
             $agencies = \App\Models\Agencia::all();
         }
@@ -311,7 +316,7 @@ class DashboardController extends Controller
      */
     public function trends(Request $request)
     {
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
@@ -321,16 +326,16 @@ class DashboardController extends Controller
 
             // Created
             $createdQuery = NuevoExpediente::whereBetween('fecha_inicio', [$start, $end]);
-            if ($agencyId) $createdQuery->where('id_agencia', $agencyId);
+            if ($agencyIds) $createdQuery->whereIn('id_agencia', $agencyIds);
             $created = $createdQuery->count();
 
             // Finalized (Based on archivado_at in seguimientos or f_almacenado_admin)
             $finalizedQuery = SeguimientoFecha::whereBetween('f_almacenado_admin', [$start, $end]);
-            if ($agencyId) {
+            if ($agencyIds) {
                 // To filter SeguimientoFecha by agency requires join with nuevos_expedientes
                 $finalizedQuery = DB::table('seguimiento_fechas')
                     ->join('nuevos_expedientes', 'seguimiento_fechas.id_expediente', '=', 'nuevos_expedientes.id')
-                    ->where('nuevos_expedientes.id_agencia', $agencyId)
+                    ->whereIn('nuevos_expedientes.id_agencia', $agencyIds)
                     ->whereBetween('seguimiento_fechas.f_almacenado_admin', [$start, $end]);
             }
             $finalized = $finalizedQuery->count();
@@ -346,7 +351,7 @@ class DashboardController extends Controller
     }
     public function processingTimes(Request $request)
     {
-        $agencyId = $this->getAuthorizedAgencyId($request);
+        $agencyIds = $this->getAuthorizedAgencyId($request);
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
@@ -359,8 +364,8 @@ class DashboardController extends Controller
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
             ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth]);
 
-        if ($agencyId) {
-            $query->where('nuevos_expedientes.id_agencia', $agencyId);
+        if ($agencyIds) {
+            $query->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
         $avgs = $query->select(
