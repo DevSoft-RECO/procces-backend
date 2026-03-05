@@ -370,6 +370,16 @@ class SolicitudRetiroController extends Controller
              $query->where('estado_actual', 1);
         }
 
+        // --- FILTRO DE BÚSQUEDA HISTÓRICA ---
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('numero_documento', 'like', "%{$search}%")
+                  ->orWhere('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('numero_producto', 'like', "%{$search}%")
+                  ->orWhere('titulo_nombre', 'like', "%{$search}%");
+            });
+        }
+
         $solicitudes = $query->orderBy('updated_at', 'desc')->paginate(10);
 
         return response()->json($solicitudes); // El contenedor paginate() envuelve los datos en 'data' y los meta
