@@ -329,8 +329,13 @@ class SolicitudRetiroController extends Controller
     {
         // Filtros: 1=Pendientes, 2=Enviados Temporales, 3=Enviados Definitivos
         $estado = $request->input('estado');
+        $id_agencia = $request->input('id_agencia'); // Nuevo filtro opcional
 
         $query = SolicitudRetiro::with(['agencia', 'solicitante', 'documento.tipoDocumento', 'documento.registroPropiedad', 'expedienteHistorico']);
+
+        if ($id_agencia) {
+            $query->where('id_agencia', $id_agencia);
+        }
 
         if ($estado == 2) {
              // Enviados Temporales (Historial: Retiro Temporal y SOLO estado 2 o 4 o 5, NO 6)
@@ -365,9 +370,9 @@ class SolicitudRetiroController extends Controller
              $query->where('estado_actual', 1);
         }
 
-        $solicitudes = $query->orderBy('updated_at', 'desc')->get();
+        $solicitudes = $query->orderBy('updated_at', 'desc')->paginate(10);
 
-        return response()->json(['data' => $solicitudes]);
+        return response()->json($solicitudes); // El contenedor paginate() envuelve los datos en 'data' y los meta
     }
 
     /**
