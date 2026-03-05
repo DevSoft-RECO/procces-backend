@@ -6,10 +6,23 @@ use Illuminate\Http\Request;
 use App\Models\NuevoExpediente;
 use App\Models\SeguimientoFecha;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    /**
+     * Helper to get the authorized agency ID.
+     */
+    private function getAuthorizedAgencyId(Request $request)
+    {
+         $user = Auth::user();
+         if ($user->hasRole('Super Admin') || $user->hasPermissionTo('dashboard_general')) {
+             return $request->input('agency_id'); // Can be null (all agencies)
+         }
+         return $user->id_agencia; // Force user's agency
+    }
+
     /**
      * Get High-Level KPIs
      */
@@ -18,29 +31,44 @@ class DashboardController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
+        $agencyId = $this->getAuthorizedAgencyId($request);
 
         $totalActive = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', '!=', 11); // Not Finalized
-        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])->count();
+        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+
+        if ($agencyId) $totalActive->where('id_agencia', $agencyId);
+        $totalActive = $totalActive->count();
 
         $totalFinalized = NuevoExpediente::whereHas('seguimientos', function($q) {
             $q->where('id_estado', 11); // Finalized
-        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])->count();
+        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+
+        if ($agencyId) $totalFinalized->where('id_agencia', $agencyId);
+        $totalFinalized = $totalFinalized->count();
 
         // Monto: Filtrado por el mes
 
-        $totalAmount = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->sum('monto_documento');
+        // Monto: Filtrado por el mes
+        $amountQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+        if ($agencyId) $amountQuery->where('id_agencia', $agencyId);
+        $totalAmount = $amountQuery->sum('monto_documento');
 
         // Avg Time from Opening to Closing (Finalized Cases)
         // Calculamos el promedio de días que tomó cerrar los expedientes (diferencia entre f_almacenado_admin y fecha_inicio)
-        $avgDaysOpen = DB::table('nuevos_expedientes')
+        $avgDaysQuery = DB::table('nuevos_expedientes')
             ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
             ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
             ->where('seguimiento_expedientes.id_estado', 11)
             ->whereNotNull('seguimiento_fechas.f_almacenado_admin')
-            ->whereNotNull('nuevos_expedientes.fecha_inicio')
+            ->whereNotNull('nuevos_expedientes.fecha_inicio');
+
+        if ($agencyId) {
+            $avgDaysQuery->where('nuevos_expedientes.id_agencia', $agencyId);
+        }
+
+        $avgDaysOpen = $avgDaysQuery
             ->select(DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_almacenado_admin, nuevos_expedientes.fecha_inicio)) as avg_days'))
             ->value('avg_days');
 
@@ -60,14 +88,20 @@ class DashboardController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
+        $agencyId = $this->getAuthorizedAgencyId($request);
 
         // Group by Current State
-        $distribution = NuevoExpediente::join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
+        $query = NuevoExpediente::join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('tipo_estados', 'seguimiento_expedientes.id_estado', '=', 'tipo_estados.id')
             ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
             ->select('tipo_estados.nombre as state_name', DB::raw('count(*) as count'))
-            ->where('seguimiento_expedientes.id_estado', '!=', 11) // Exclude Finalized for pipeline view
-            ->groupBy('tipo_estados.nombre')
+            ->where('seguimiento_expedientes.id_estado', '!=', 11); // Exclude Finalized for pipeline view
+
+        if ($agencyId) {
+            $query->where('nuevos_expedientes.id_agencia', $agencyId);
+        }
+
+        $distribution = $query->groupBy('tipo_estados.nombre')
             ->orderBy('count', 'desc')
             ->get();
 
@@ -79,33 +113,21 @@ class DashboardController extends Controller
      */
     public function advisors(Request $request)
     {
+        $agencyId = $this->getAuthorizedAgencyId($request);
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+
         $query = NuevoExpediente::with('asesor')
             ->select('usuario_asesor')
             ->whereNotNull('usuario_asesor')
             ->groupBy('usuario_asesor');
 
-        if ($request->has('agency_id') && $request->agency_id) {
-            $query->where('id_agencia', $request->agency_id);
+        if ($agencyId) {
+            $query->where('id_agencia', $agencyId);
         }
 
         $allAdvisors = $query->get();
-        // ... rest of logic needs to be careful because we iterate $allAdvisors but metrics calculation also needs to respect the filter?
-        // Actually, $allAdvisors gives us the list of advisors.
-        // Then inside the loop we calculate metrics for each advisor.
-        // The metrics should likely be for ALL their cases, OR just cases within that agency?
-        // "Rendimiento de asesores por agencia": This usually means "Show me advisors belonging to this agency and their performance".
-        // If an advisor works for multiple agencies (unlikely in this domain?), we might want to filter metrics too.
-        // But usually an advisor is tied to an agency or the cases are.
-        // Let's assume we filter the *list* of advisors based on whether they have cases in that agency.
-        // And the metrics? "Active cases" -> should probably be filtered by agency too if we are looking at "Agency Performance".
-        // Users usually want "How is this advisor performing *in this agency*?".
-        // So I should add filtering to the metrics queries too.
-
-        // Refactored approach:
-        $agencyId = $request->input('agency_id');
-        $month = $request->input('month', Carbon::now()->format('Y-m'));
-        $startOfMonth = Carbon::parse($month)->startOfMonth();
-        $endOfMonth = Carbon::parse($month)->endOfMonth();
 
         $metrics = [];
 
@@ -212,10 +234,17 @@ class DashboardController extends Controller
      */
     public function agencies(Request $request)
     {
-        $agencies = \App\Models\Agencia::all();
+        $agencyId = $this->getAuthorizedAgencyId($request);
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
+
+        // If locked to a single agency, calculate only for that agency.
+        if ($agencyId) {
+            $agencies = \App\Models\Agencia::where('id', $agencyId)->get();
+        } else {
+            $agencies = \App\Models\Agencia::all();
+        }
 
         $data = [];
 
@@ -280,8 +309,9 @@ class DashboardController extends Controller
     /**
      * Trends (Last 6 Months)
      */
-    public function trends()
+    public function trends(Request $request)
     {
+        $agencyId = $this->getAuthorizedAgencyId($request);
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
@@ -290,12 +320,20 @@ class DashboardController extends Controller
             $end = $date->copy()->endOfMonth();
 
             // Created
-            $created = NuevoExpediente::whereBetween('fecha_inicio', [$start, $end])->count();
+            $createdQuery = NuevoExpediente::whereBetween('fecha_inicio', [$start, $end]);
+            if ($agencyId) $createdQuery->where('id_agencia', $agencyId);
+            $created = $createdQuery->count();
 
             // Finalized (Based on archivado_at in seguimientos or f_almacenado_admin)
-            // Ideally we use timestamp of status change.
-            // We'll use seguimiento_fechas.f_almacenado_admin as proxy for "Done"
-            $finalized = SeguimientoFecha::whereBetween('f_almacenado_admin', [$start, $end])->count();
+            $finalizedQuery = SeguimientoFecha::whereBetween('f_almacenado_admin', [$start, $end]);
+            if ($agencyId) {
+                // To filter SeguimientoFecha by agency requires join with nuevos_expedientes
+                $finalizedQuery = DB::table('seguimiento_fechas')
+                    ->join('nuevos_expedientes', 'seguimiento_fechas.id_expediente', '=', 'nuevos_expedientes.id')
+                    ->where('nuevos_expedientes.id_agencia', $agencyId)
+                    ->whereBetween('seguimiento_fechas.f_almacenado_admin', [$start, $end]);
+            }
+            $finalized = $finalizedQuery->count();
 
             $months[] = [
                 'month' => $monthLabel,
@@ -308,6 +346,7 @@ class DashboardController extends Controller
     }
     public function processingTimes(Request $request)
     {
+        $agencyId = $this->getAuthorizedAgencyId($request);
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
@@ -316,10 +355,15 @@ class DashboardController extends Controller
         // un documento re-entró a etapas previas (rebotes/devoluciones) regrabando la fecha posterior).
         // Usamos TIMESTAMPDIFF(HOUR) / 24.0 para obtener promedios decimales correctos incluso en el mismo día.
 
-        $avgs = DB::table('nuevos_expedientes')
+        $query = DB::table('nuevos_expedientes')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
-            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->select(
+            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth]);
+
+        if ($agencyId) {
+            $query->where('nuevos_expedientes.id_agencia', $agencyId);
+        }
+
+        $avgs = $query->select(
                 DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_secretaria >= nuevos_expedientes.created_at THEN TIMESTAMPDIFF(HOUR, nuevos_expedientes.created_at, seguimiento_fechas.f_enviado_secretaria) / 24.0 ELSE NULL END) as avg_creation_to_secretary'),
                 DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_protocolos >= seguimiento_fechas.f_aceptado_secretaria THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_secretaria, seguimiento_fechas.f_enviado_protocolos) / 24.0 ELSE NULL END) as avg_secretary_internal'),
                 DB::raw('AVG(CASE WHEN seguimiento_fechas.f_enviado_abogado >= seguimiento_fechas.f_aceptado_secretaria_credito THEN TIMESTAMPDIFF(HOUR, seguimiento_fechas.f_aceptado_secretaria_credito, seguimiento_fechas.f_enviado_abogado) / 24.0 ELSE NULL END) as avg_secretary_to_lawyer'),
