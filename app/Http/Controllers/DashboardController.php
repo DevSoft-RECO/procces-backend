@@ -141,7 +141,9 @@ class DashboardController extends Controller
             $advisorId = $record->usuario_asesor;
 
             // Common query part
-            $baseQuery = NuevoExpediente::where('usuario_asesor', $advisorId);
+            $baseQuery = NuevoExpediente::where('usuario_asesor', $advisorId)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+
             if ($agencyIds) {
                 $baseQuery->whereIn('id_agencia', $agencyIds);
             }
@@ -254,14 +256,21 @@ class DashboardController extends Controller
         $data = [];
 
         foreach ($agencies as $agency) {
-            $total = NuevoExpediente::where('id_agencia', $agency->id)->count();
+            $total = NuevoExpediente::where('id_agencia', $agency->id)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+                ->count();
+
+            // Skip agencies with no activity in this month
+            if ($total === 0) continue;
 
             $active = NuevoExpediente::where('id_agencia', $agency->id)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
                 ->whereHas('seguimientos', function($q) { $q->where('id_estado', '!=', 11); })
                 ->count();
 
             // Rejected at least once
             $rejectedCount = NuevoExpediente::where('id_agencia', $agency->id)
+                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
                 ->whereHas('fechas', function($q){
                         $q->whereNotNull('f_retorno_asesores');
                 })
