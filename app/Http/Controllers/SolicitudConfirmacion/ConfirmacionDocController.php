@@ -130,7 +130,15 @@ class ConfirmacionDocController extends Controller
      */
     public function indexResults(Request $request)
     {
-        $query = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+        $query = ConfirmacionDocumento::with([
+            'documento.tipoDocumento',
+            'documento.registroPropiedad',
+            'documento.nuevosExpedientes' => function ($query) {
+                // Must select 'documento_nuevo_expediente.documento_id' implicitly via the pivot if needed,
+                // but Laravel handles it if 'id' is selected.
+                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado');
+            }
+        ])
             // Include pending requests too, ordered by date
             ->orderBy('created_at', 'desc');
 
@@ -151,7 +159,13 @@ class ConfirmacionDocController extends Controller
     public function indexHistory(Request $request)
     {
         // For now, same data. In future, could filter byValidatorUser
-        $historico = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+        $historico = ConfirmacionDocumento::with([
+            'documento.tipoDocumento',
+            'documento.registroPropiedad',
+            'documento.nuevosExpedientes' => function ($query) {
+                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado');
+            }
+        ])
             ->whereNotNull('confirmacion')
             ->orderBy('fecha_confirmacion', 'desc')
             ->get();
