@@ -29,7 +29,7 @@ return [
             // ---------------------------------------------------------
             // 2. ENTORNO PRODUCCIÓN (Google Cloud)
             // ---------------------------------------------------------
-            'https://sadec.yamankutx.com.gt',       // Tu App Madre Real
+            'https://sadec.yamankutx.com.gt',       // App hija pero en produccion
         ],
 
     'allowed_origins_patterns' => [],

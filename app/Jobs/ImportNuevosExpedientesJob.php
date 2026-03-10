@@ -154,7 +154,7 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                         'tipo_garantia'    => $row[6] ?? null, // Shifted from 7
                         'fecha_inicio'     => $this->dateVal($row, 7), // Shifted from 8
                         'cui'              => $row[8] ?? null, // Shifted from 9
-                        'nombre_asociado'  => $row[11] ?? null, // Shifted from 12? Assuming 10,11 skipped -> 9,10 skipped -> 11 used?
+                        'nombre_asociado'  => $row[9] ?? null, // Shifted from 12? Assuming 10,11 skipped -> 9,10 skipped -> 11 used?
                         'created_at'       => now(),
                         'updated_at'       => now(),
                     ];
