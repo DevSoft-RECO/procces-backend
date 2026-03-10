@@ -105,7 +105,8 @@ class ExpedienteHistoricoController extends Controller
             'inventario',
             'salida',
             'observacion',
-            'estado'
+            'estado',
+            'localizacion'
         ]);
 
         try {

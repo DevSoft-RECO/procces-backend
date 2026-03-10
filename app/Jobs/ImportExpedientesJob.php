@@ -239,6 +239,7 @@ class ImportExpedientesJob implements ShouldQueue
             'salida'               => $this->val($row, 14),
             'observacion'          => $this->val($row, 15),
             'estado'               => $this->val($row, 16),
+            'localizacion'         => $this->val($row, 17),
             'created_at'           => now(),
             'updated_at'           => now(),
         ];

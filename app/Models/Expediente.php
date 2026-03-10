@@ -59,7 +59,8 @@ class Expediente extends Model
         'inventario',
         'salida',
         'observacion',
-        'estado'
+        'estado',
+        'localizacion'
     ];
 
     /**
