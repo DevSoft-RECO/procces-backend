@@ -37,29 +37,31 @@ class DashboardController extends Controller
         $endOfMonth = Carbon::parse($month)->endOfMonth();
         $agencyIds = $this->getAuthorizedAgencyId($request);
 
-        $totalActive = NuevoExpediente::whereHas('seguimientos', function($q) {
-            $q->where('id_estado', '!=', 11); // Not Finalized
-        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+        // ── Total real del mes: todos los expedientes de ese lote/mes ──────────
+        $totalMesQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
+        if ($agencyIds) $totalMesQuery->whereIn('id_agencia', $agencyIds);
+        $totalMes = $totalMesQuery->count();
 
-        if ($agencyIds) $totalActive->whereIn('id_agencia', $agencyIds);
-        $totalActive = $totalActive->count();
+        // ── Con seguimiento: de los del mes, cuántos ya tienen seguimiento ─────
+        $conSeguimientoQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+            ->whereHas('seguimientos');
+        if ($agencyIds) $conSeguimientoQuery->whereIn('id_agencia', $agencyIds);
+        $conSeguimiento = $conSeguimientoQuery->count();
 
-        $totalFinalized = NuevoExpediente::whereHas('seguimientos', function($q) {
-            $q->where('id_estado', 11); // Finalized
-        })->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
-
+        // ── Finalizados del mes (id_estado = 11) ───────────────────────────────
+        $totalFinalized = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+            ->whereHas('seguimientos', function($q) {
+                $q->where('id_estado', 11);
+            });
         if ($agencyIds) $totalFinalized->whereIn('id_agencia', $agencyIds);
         $totalFinalized = $totalFinalized->count();
 
-        // Monto: Filtrado por el mes
-
-        // Monto: Filtrado por el mes
+        // ── Monto total del mes ────────────────────────────────────────────────
         $amountQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
         if ($agencyIds) $amountQuery->whereIn('id_agencia', $agencyIds);
         $totalAmount = $amountQuery->sum('monto_documento');
 
-        // Avg Time from Opening to Closing (Finalized Cases)
-        // Calculamos el promedio de días que tomó cerrar los expedientes (diferencia entre f_almacenado_admin y fecha_inicio)
+        // ── Tiempo promedio de cierre (expedientes finalizados del mes) ────────
         $avgDaysQuery = DB::table('nuevos_expedientes')
             ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
@@ -77,10 +79,13 @@ class DashboardController extends Controller
             ->value('avg_days');
 
         return response()->json([
-            'total_active' => $totalActive,
-            'total_finalized' => $totalFinalized,
-            'total_amount' => $totalAmount,
-            'avg_days_open' => round($avgDaysOpen, 1) // Days passed in current month implicitly covered by avg calculation or strict filter? User asked "days elapsed this month" or "total amount moved this month". Adjusted Amount only as per common KPI needs.
+            'total_mes'        => $totalMes,          // Total real del mes
+            'con_seguimiento'  => $conSeguimiento,     // De esos, cuántos ya tienen seguimiento
+            'total_finalized'  => $totalFinalized,     // Finalizados del mes
+            'total_amount'     => $totalAmount,
+            'avg_days_open'    => round($avgDaysOpen, 1),
+            // Compatibilidad hacia atrás
+            'total_active'     => $conSeguimiento,
         ]);
     }
 
