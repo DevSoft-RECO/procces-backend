@@ -11,6 +11,10 @@ class ConfirmacionDocumento extends Model
     protected $fillable = [
         'documento_id',
         'user_id',
+        'nombre_solicitante', // Nombre del usuario que crea la solicitud
+        'id_agencia',         // Agencia del usuario solicitante
+        'codigo_cliente',     // Del expediente vinculado
+        'numero_producto',    // Del expediente vinculado
         'numero',
         'fecha',
         'propietario',

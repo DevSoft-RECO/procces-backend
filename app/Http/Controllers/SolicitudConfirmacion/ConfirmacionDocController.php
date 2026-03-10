@@ -5,7 +5,9 @@ namespace App\Http\Controllers\SolicitudConfirmacion;
 use App\Http\Controllers\Controller;
 use App\Models\ConfirmacionDocumento;
 use App\Models\Documento;
+use App\Models\NuevoExpediente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ConfirmacionDocController extends Controller
@@ -22,7 +24,7 @@ class ConfirmacionDocController extends Controller
             return response()->json(['message' => 'Número y fecha son requeridos.'], 400);
         }
 
-        $documentos = Documento::with(['tipoDocumento', 'registroPropiedad'])
+        $documentos = Documento::with(['tipoDocumento', 'registroPropiedad', 'nuevosExpedientes'])
             ->where('numero', $numero)
             ->whereDate('fecha', $fecha)
             ->get();
@@ -32,6 +34,11 @@ class ConfirmacionDocController extends Controller
                 'found' => true,
                 'multiple' => $documentos->count() > 1,
                 'data' => $documentos->map(function ($documento) {
+                    // Obtener el expediente activo más reciente vinculado al documento
+                    $expediente = $documento->nuevosExpedientes
+                        ->sortByDesc('id')
+                        ->first();
+
                     return [
                         'id' => $documento->id,
                         'numero' => $documento->numero,
@@ -47,6 +54,10 @@ class ConfirmacionDocController extends Controller
                         'observacion' => $documento->observacion,
                         'tipo_documento' => $documento->tipoDocumento?->nombre,
                         'registro_propiedad' => $documento->registroPropiedad?->nombre,
+                        // Datos del expediente vinculado
+                        'codigo_cliente' => $expediente?->codigo_cliente,
+                        'numero_producto' => $expediente?->numero_documento,
+                        'id_expediente' => $expediente?->id,
                     ];
                 })
             ]);
@@ -70,9 +81,13 @@ class ConfirmacionDocController extends Controller
         try {
             DB::beginTransaction();
 
+            $user = Auth::user();
+
             // Create with pending status (null fields) and assign to current user
             $data = $request->all();
-            $data['user_id'] = $request->user()->id;
+            $data['user_id']           = $user->id;
+            $data['nombre_solicitante'] = $user->name;  // Nombre del usuario que crea la solicitud
+            $data['id_agencia']         = $request->input('id_agencia') ?? $user->id_agencia; // Agencia del usuario
 
             $confirmacion = ConfirmacionDocumento::create($data);
 
@@ -91,7 +106,11 @@ class ConfirmacionDocController extends Controller
     public function index(Request $request)
     {
         // Get all where confirmacion is NULL
-        $pendientes = ConfirmacionDocumento::with(['documento.tipoDocumento', 'documento.registroPropiedad'])
+        $pendientes = ConfirmacionDocumento::with([
+                'documento.tipoDocumento',
+                'documento.registroPropiedad',
+                'user',  // Nombre y agencia del solicitante
+            ])
             ->whereNull('confirmacion')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -134,10 +153,9 @@ class ConfirmacionDocController extends Controller
             'documento.tipoDocumento',
             'documento.registroPropiedad',
             'documento.nuevosExpedientes' => function ($query) {
-                // Must select 'documento_nuevo_expediente.documento_id' implicitly via the pivot if needed,
-                // but Laravel handles it if 'id' is selected.
-                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado');
-            }
+                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado', 'nuevos_expedientes.codigo_cliente');
+            },
+            'user',  // Nombre y agencia del solicitante
         ])
             // Include pending requests too, ordered by date
             ->orderBy('created_at', 'desc');
@@ -163,8 +181,9 @@ class ConfirmacionDocController extends Controller
             'documento.tipoDocumento',
             'documento.registroPropiedad',
             'documento.nuevosExpedientes' => function ($query) {
-                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado');
-            }
+                $query->select('nuevos_expedientes.id', 'nuevos_expedientes.numero_documento', 'nuevos_expedientes.nombre_asociado', 'nuevos_expedientes.codigo_cliente');
+            },
+            'user',  // Nombre y agencia del solicitante
         ])
             ->whereNotNull('confirmacion')
             ->orderBy('fecha_confirmacion', 'desc')
