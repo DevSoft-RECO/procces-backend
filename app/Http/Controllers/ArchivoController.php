@@ -308,8 +308,9 @@ public function show($id_seguimiento)
                 $query->select([
                     'documentos.id', 'numero', 'fecha', 'propietario',
                     'autorizador', 'no_finca', 'folio', 'libro',
-                    'no_dominio', 'referencia', 'monto_poliza', 'observacion'
-                ]);
+                    'no_dominio', 'referencia', 'monto_poliza', 'observacion',
+                    'tipo_documento_id', 'registro_propiedad_id'
+                ])->with(['tipoDocumento:id,nombre', 'registroPropiedad:id,nombre']);
             },
             'bufete' => function ($query) {
                 $query->select(['id', 'user_id']);
