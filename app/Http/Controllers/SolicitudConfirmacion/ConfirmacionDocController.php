@@ -113,9 +113,9 @@ class ConfirmacionDocController extends Controller
             ])
             ->whereNull('confirmacion')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10);
 
-        return response()->json(['data' => $pendientes]);
+        return response()->json($pendientes);
     }
 
     /**
@@ -187,9 +187,9 @@ class ConfirmacionDocController extends Controller
         ])
             ->whereNotNull('confirmacion')
             ->orderBy('fecha_confirmacion', 'desc')
-            ->get();
+            ->paginate(10);
 
-        return response()->json(['data' => $historico]);
+        return response()->json($historico);
     }
 
     /**
