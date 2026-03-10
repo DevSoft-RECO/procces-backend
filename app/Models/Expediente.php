@@ -16,7 +16,7 @@ class Expediente extends Model
      *
      * @var string
      */
-    protected $primaryKey = 'codigo_cliente';
+    protected $primaryKey = 'id';
 
     /**
      * The "type" of the auto-incrementing ID.
@@ -35,7 +35,7 @@ class Expediente extends Model
      *
      * @var bool
      */
-    public $incrementing = false;
+    public $incrementing = true;
 
     /**
      * The attributes that are mass assignable.
