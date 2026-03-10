@@ -205,7 +205,7 @@ class ArchivoController extends Controller
                 'contrato'          => $seguimiento->numero_contrato,
                 'inscripcion_otros_contratos' => null,
                 'ingreso'           => now()->format('Y-m-d'),
-                'estado'            => 'RECIBIDO',
+                'estado'            => 'COMPLETO SADEC',
             ]);
 
             // 2. ACTUALIZACIÓN CLAVE: Matar el proceso secundario
