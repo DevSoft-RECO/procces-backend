@@ -207,6 +207,20 @@ class ConfirmacionDocController extends Controller
         }
     }
     /**
+     * Delete a confirmation request (Super Admin only).
+     */
+    public function destroy($id)
+    {
+        try {
+            $confirmacion = ConfirmacionDocumento::findOrFail($id);
+            $confirmacion->delete();
+            return response()->json(['message' => 'Solicitud eliminada correctamente.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al eliminar la solicitud: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Register a new document from a manual confirmation request.
      */
     public function registerDocument(Request $request, $id)
