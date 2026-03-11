@@ -115,13 +115,13 @@ class ExpedienteHistoricoController extends Controller
 
         $termino = $request->contrato;
 
-        $expediente = Expediente::where('numero_documento', $termino)
+        $expedientes = Expediente::where('numero_documento', $termino)
             ->orWhere('cta_bw', $termino)
             ->orWhere('codigo_cliente', $termino)
             ->orWhere('asociado', 'LIKE', "%{$termino}%")
-            ->first();
+            ->get();
 
-        if (!$expediente) {
+        if ($expedientes->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Expediente no encontrado'
@@ -130,7 +130,7 @@ class ExpedienteHistoricoController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $expediente
+            'data' => $expedientes
         ]);
     }
     /**
