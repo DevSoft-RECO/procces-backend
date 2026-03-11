@@ -83,6 +83,8 @@ Route::get('/import-nuevos/lotes/{id}', [App\Http\Controllers\BatchManagementCon
 Route::delete('/import-nuevos/lotes/{id}', [App\Http\Controllers\BatchManagementController::class, 'destroy']);
 
 
+Route::get('/expedientes/agencias', [App\Http\Controllers\ExpedienteHistoricoController::class, 'getAgencias']);
+Route::get('/expedientes/estados', [App\Http\Controllers\ExpedienteHistoricoController::class, 'getEstados']);
 Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'index']);
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
 Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);

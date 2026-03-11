@@ -14,13 +14,63 @@ class ExpedienteHistoricoController extends Controller
      */
     public function index(Request $request)
     {
-        // Removed validation restrictions as requested
-        // Just return paginated data ordered by creation
-        $expedientes = Expediente::orderBy('fecha_inicio', 'desc')->paginate(10);
+        $query = Expediente::query();
+
+        // Filter by Agency
+        if ($request->filled('agencia')) {
+            $query->where('agencia', $request->agencia);
+        }
+
+        // Filter by Status
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Sorting by Date (fecha_inicio)
+        $order = $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy('fecha_inicio', $order);
+
+        $expedientes = $query->paginate(10);
 
         return response()->json([
             'success' => true,
             'data' => $expedientes
+        ]);
+    }
+
+    /**
+     * Get unique agencies from the expedientes table.
+     */
+    public function getAgencias()
+    {
+        $agencias = Expediente::select('agencia')
+            ->whereNotNull('agencia')
+            ->where('agencia', '!=', '')
+            ->distinct()
+            ->orderBy('agencia', 'asc')
+            ->pluck('agencia');
+
+        return response()->json([
+            'success' => true,
+            'data' => $agencias
+        ]);
+    }
+
+    /**
+     * Get unique statuses from the expedientes table.
+     */
+    public function getEstados()
+    {
+        $estados = Expediente::select('estado')
+            ->whereNotNull('estado')
+            ->where('estado', '!=', '')
+            ->distinct()
+            ->orderBy('estado', 'asc')
+            ->pluck('estado');
+
+        return response()->json([
+            'success' => true,
+            'data' => $estados
         ]);
     }
 
@@ -106,7 +156,10 @@ class ExpedienteHistoricoController extends Controller
             'salida',
             'observacion',
             'estado',
-            'localizacion'
+            'localizacion',
+            'contrato',
+            'datos_garantia',
+            'ingreso'
         ]);
 
         try {
