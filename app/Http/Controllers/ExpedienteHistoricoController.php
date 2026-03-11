@@ -117,6 +117,8 @@ class ExpedienteHistoricoController extends Controller
 
         $expediente = Expediente::where('numero_documento', $termino)
             ->orWhere('cta_bw', $termino)
+            ->orWhere('codigo_cliente', $termino)
+            ->orWhere('asociado', 'LIKE', "%{$termino}%")
             ->first();
 
         if (!$expediente) {
