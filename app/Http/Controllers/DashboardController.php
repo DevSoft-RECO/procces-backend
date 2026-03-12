@@ -127,11 +127,10 @@ class DashboardController extends Controller
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
 
-        $query = NuevoExpediente::with('asesor')
-                ->select('usuario_asesor')
+        $query = NuevoExpediente::select(DB::raw('LOWER(usuario_asesor) as usuario_id'))
                 ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
                 ->whereNotNull('usuario_asesor')
-                ->groupBy('usuario_asesor');
+                ->groupBy(DB::raw('LOWER(usuario_asesor)'));
 
         if ($agencyIds) {
             $query->whereIn('id_agencia', $agencyIds);
@@ -142,11 +141,13 @@ class DashboardController extends Controller
         $metrics = [];
 
         foreach ($allAdvisors as $record) {
-            $advisorName = $record->asesor->name ?? $record->usuario_asesor ?? 'Unknown';
-            $advisorId = $record->usuario_asesor;
+            $advisorId = $record->usuario_id;
+            // Get the proper case for the display name if available from User model
+            $asesorModel = \App\Models\User::whereRaw('LOWER(username) = ?', [$advisorId])->first();
+            $advisorName = $asesorModel->name ?? $advisorId;
 
-            // Common query part
-            $baseQuery = NuevoExpediente::where('usuario_asesor', $advisorId)
+            // Common query part - using LOWER to ensure all records match regardless of case
+            $baseQuery = NuevoExpediente::whereRaw('LOWER(usuario_asesor) = ?', [$advisorId])
                 ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
 
             if ($agencyIds) {
