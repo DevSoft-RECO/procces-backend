@@ -42,6 +42,9 @@ class ArchivoController extends Controller
         ->when($request->id_agencia && $request->id_agencia !== 'todas', function ($query) use ($request) {
             $query->where('id_agencia', $request->id_agencia);
         })
+        ->when($request->codigo_cliente, function ($query) use ($request) {
+            $query->where('codigo_cliente', 'like', '%' . $request->codigo_cliente . '%');
+        })
         ->with([
             'fechas:id_expediente,f_enviado_archivos',
             'seguimientos' => function ($query) {
