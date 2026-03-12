@@ -53,10 +53,13 @@ class GenerarReporteConfirmacionesJob implements ShouldQueue
 
             // Column Header
             $columns = [
-                'ID Confirmación',
+                'ID',
                 'ID Documento Vinculado',
-                'Usuario Solicitante',
-                'Número',
+                'Nombre Solicitante',
+                'Agencia Solicitante',
+                'Código Cliente',
+                'Número Producto',
+                'Número Documento',
                 'Fecha',
                 'Propietario',
                 'Autorizador',
@@ -78,11 +81,10 @@ class GenerarReporteConfirmacionesJob implements ShouldQueue
             fputcsv($file, $columns);
 
             $query = DB::table('confirmaciones_documentos')
-                ->leftJoin('users as u', 'confirmaciones_documentos.user_id', '=', 'u.id')
+                ->leftJoin('agencias as a', 'confirmaciones_documentos.id_agencia', '=', 'a.id')
                 ->select(
                     'confirmaciones_documentos.*',
-                    'u.name as u_name',
-                    'u.username as u_username'
+                    'a.nombre as nombre_agencia'
                 )
                 ->orderBy('confirmaciones_documentos.id', 'DESC');
 
@@ -121,7 +123,10 @@ class GenerarReporteConfirmacionesJob implements ShouldQueue
                     fputcsv($file, [
                         $row->id,
                         $row->documento_id,
-                        $row->u_name ?? $row->u_username ?? 'USUARIO DESCONOCIDO (' . $row->user_id . ')',
+                        $row->nombre_solicitante,
+                        $row->nombre_agencia,
+                        $row->codigo_cliente,
+                        $row->numero_producto,
                         $row->numero,
                         $row->fecha,
                         $row->propietario,
