@@ -34,13 +34,18 @@ class SupervisionAgenciaController extends Controller
             ]);
         }
 
+        // Parámetros de búsqueda y filtros
+        $tab = $request->input('tab', 'nuevos'); // 'nuevos', 'seguimiento', 'finalizados'
+        $asesorBusqueda = $request->input('asesor');
+        $fechaInicioBusqueda = $request->input('fecha_inicio');
+
         // Buscamos expedientes de la agencia
         $query = NuevoExpediente::select([
                 'id',
                 'codigo_cliente',
                 'id_agencia',
                 'numero_documento',
-                'usuario_asesor', // Campo nuevo solicitado
+                'usuario_asesor',
                 'tasa_interes',
                 'monto_documento',
                 'tipo_garantia',
@@ -50,6 +55,40 @@ class SupervisionAgenciaController extends Controller
             ])
             ->when(!$isSuperAdmin, function ($q) use ($idAgencia) {
                 return $q->where('id_agencia', $idAgencia);
+            })
+            // Filtro por Fecha de Desembolso
+            ->when($fechaInicioBusqueda, function ($q) use ($fechaInicioBusqueda) {
+                return $q->whereDate('fecha_inicio', $fechaInicioBusqueda);
+            })
+            // Filtro por Asesor (búsqueda parcial ignorando mayúsculas/minúsculas)
+            ->when($asesorBusqueda, function ($q) use ($asesorBusqueda) {
+                return $q->where('usuario_asesor', 'like', '%' . $asesorBusqueda . '%');
+            })
+            // Lógica por Tabs
+            ->when($tab === 'nuevos', function ($q) {
+                // Cargados: No tienen registro en seguimiento_expedientes
+                return $q->doesntHave('seguimientos');
+            })
+            ->when($tab === 'seguimiento', function ($q) {
+                // En Seguimiento: Tienen seguimientos, pero el último NO es completado (11)
+                return $q->whereHas('seguimientos', function ($q2) {
+                    // Nos aseguramos que al menos exista uno
+                })->whereDoesntHave('seguimientos', function ($q2) {
+                    // Pero que el último no sea 11
+                    $q2->whereRaw('id_seguimiento = (SELECT MAX(id_seguimiento) FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id)')
+                       ->where(function ($q3) {
+                           $q3->where('id_estado', 11)->orWhere('id_estado_secundario', 11);
+                       });
+                });
+            })
+            ->when($tab === 'finalizados', function ($q) {
+                // Completados: El último seguimiento tiene estado 11 o secundario 11
+                return $q->whereHas('seguimientos', function ($q2) {
+                    $q2->whereRaw('id_seguimiento = (SELECT MAX(id_seguimiento) FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id)')
+                       ->where(function ($q3) {
+                           $q3->where('id_estado', 11)->orWhere('id_estado_secundario', 11);
+                       });
+                });
             })
             // Agregamos el último seguimiento para conocer su estado actual
             ->with([
@@ -62,7 +101,7 @@ class SupervisionAgenciaController extends Controller
                          'archivado_at',
                          'created_at'
                      ])
-                     ->orderBy('created_at', 'desc')
+                     ->orderBy('id_seguimiento', 'desc')
                      ->limit(1);
                  }
             ])
