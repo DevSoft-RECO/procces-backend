@@ -145,13 +145,16 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/secretaria-agencia/recibir-pagare', [App\Http\Controllers\SecretariaAgenciaController::class, 'recibirPagare']);
     // Route::post('/secretaria-agencia/archivar-pagare', [App\Http\Controllers\SecretariaAgenciaController::class, 'archivarPagare']);
 
-    // Archivo Module
+    // Archivo Central
     Route::get('/archivo/buzon-recibidos', [App\Http\Controllers\ArchivoController::class, 'buzonRecibidos']);
-    Route::post('/archivo/recibir-garantia/{id}', [App\Http\Controllers\ArchivoController::class, 'recibirGarantiaReal']);
-    Route::post('/archivo/recibir-contrato/{id}', [App\Http\Controllers\ArchivoController::class, 'recibirContrato']);
-    Route::post('/archivo/archivar/{id}', [App\Http\Controllers\ArchivoController::class, 'archivar']);
+    Route::post('/archivo/{id}/recibir-garantia', [App\Http\Controllers\ArchivoController::class, 'recibirGarantiaReal']);
+    Route::post('/archivo/{id}/recibir-contrato', [App\Http\Controllers\ArchivoController::class, 'recibirContrato']);
+    Route::post('/archivo/{id}/archivar', [App\Http\Controllers\ArchivoController::class, 'archivar']);
     Route::get('/archivo/sistema', [App\Http\Controllers\ArchivoController::class, 'archivoSistema']);
     Route::get('/archivo/detalle/{id}', [App\Http\Controllers\ArchivoController::class, 'show']);
+
+    // Supervisión Agencia
+    Route::get('/supervision/agencia', [App\Http\Controllers\SupervisionAgenciaController::class, 'index']);
 
     // Tracking (Historial Centralizado)
     Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);
