@@ -90,6 +90,13 @@ class SupervisionAgenciaController extends Controller
                        });
                 });
             })
+            ->when($tab === 'rechazados', function ($q) {
+                // Rechazados: El último seguimiento tiene estado 2
+                return $q->whereHas('seguimientos', function ($q2) {
+                    $q2->whereRaw('id_seguimiento = (SELECT MAX(id_seguimiento) FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id)')
+                       ->where('id_estado', 2);
+                });
+            })
             // Agregamos el último seguimiento para conocer su estado actual
             ->with([
                  'seguimientos' => function ($query) {
@@ -98,6 +105,7 @@ class SupervisionAgenciaController extends Controller
                          'id_expediente',
                          'id_estado',
                          'id_estado_secundario',
+                         'observacion_rechazo',
                          'archivado_at',
                          'created_at'
                      ])

@@ -66,6 +66,12 @@ class SupervisorRegionesController extends Controller
                        });
                 });
             })
+            ->when($tab === 'rechazados', function ($q) {
+                return $q->whereHas('seguimientos', function ($q2) {
+                    $q2->whereRaw('id_seguimiento = (SELECT MAX(id_seguimiento) FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id)')
+                       ->where('id_estado', 2);
+                });
+            })
             ->with([
                  'seguimientos' => function ($query) {
                      $query->select([
@@ -73,6 +79,7 @@ class SupervisorRegionesController extends Controller
                          'id_expediente',
                          'id_estado',
                          'id_estado_secundario',
+                         'observacion_rechazo',
                          'archivado_at',
                          'created_at'
                      ])
