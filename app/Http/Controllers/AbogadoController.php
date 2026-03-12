@@ -119,33 +119,49 @@ class AbogadoController extends Controller
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
 
-        // Iniciamos la consulta base con los campos optimizados
+        // Initial query with optimized fields
         $query = NuevoExpediente::select([
-                'id',
-                'codigo_cliente',
-                'nombre_asociado',
-                'numero_documento'
+                'nuevos_expedientes.id',
+                'nuevos_expedientes.codigo_cliente',
+                'nuevos_expedientes.nombre_asociado',
+                'nuevos_expedientes.numero_documento'
             ])
             ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
 
-        // APLICACIÓN DE RESTRICCIONES DE ROL
+        // FILTER: Current state must be 10 (Devolución a Secretaría)
+        $query->whereHas('seguimientos', function ($q) {
+            $q->where('id_estado', 10)
+              ->whereRaw('id_seguimiento = (select max(id_seguimiento) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+        });
+
+        // ROLE RESTRICTIONS: If not Super Admin, only show expedientes assigned to their bufete
         if (!$isSuperAdmin) {
-            $query->whereHas('seguimientos', function ($q) use ($user) {
-                $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
-                $q->where('bufete_id', $bufeteId);
+            $bufete = \App\Models\Bufete::where('user_id', $user->id)->first();
+            if (!$bufete) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'data' => [],
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'total' => 0
+                    ]
+                ]);
+            }
+            
+            $query->whereHas('seguimientos', function ($q) use ($bufete) {
+                $q->where('bufete_id', $bufete->id);
             });
-        } else {
-            $query->has('seguimientos');
         }
 
-        // FILTRADO POR FECHAS (sobre el campo f_enviado_secretaria_credito en la relación fechas)
+        // DATE FILTER (on f_enviado_secretaria_credito)
         if ($fechaInicio && $fechaFin) {
             $query->whereHas('fechas', function ($q) use ($fechaInicio, $fechaFin) {
                 $q->whereBetween('f_enviado_secretaria_credito', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
             });
         }
 
-        $expedientes = $query->latest()->paginate(15);
+        $expedientes = $query->latest('nuevos_expedientes.id')->paginate(15);
 
         return response()->json($expedientes);
     }
@@ -159,20 +175,27 @@ class AbogadoController extends Controller
         $fechaFin = $request->input('fecha_fin');
 
         $query = NuevoExpediente::select([
-                'id',
-                'codigo_cliente',
-                'nombre_asociado',
-                'numero_documento'
+                'nuevos_expedientes.id',
+                'nuevos_expedientes.codigo_cliente',
+                'nuevos_expedientes.nombre_asociado',
+                'nuevos_expedientes.numero_documento'
             ])
             ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
 
+        // FILTER: Current state must be 10
+        $query->whereHas('seguimientos', function ($q) {
+            $q->where('id_estado', 10)
+              ->whereRaw('id_seguimiento = (select max(id_seguimiento) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+        });
+
         if (!$isSuperAdmin) {
-            $query->whereHas('seguimientos', function ($q) use ($user) {
-                $bufeteId = \App\Models\Bufete::where('user_id', $user->id)->value('id');
-                $q->where('bufete_id', $bufeteId);
+            $bufete = \App\Models\Bufete::where('user_id', $user->id)->first();
+            if (!$bufete) {
+                return response()->json(['success' => false, 'message' => 'No se encontró bufete asociado.']);
+            }
+            $query->whereHas('seguimientos', function ($q) use ($bufete) {
+                $q->where('bufete_id', $bufete->id);
             });
-        } else {
-            $query->has('seguimientos');
         }
 
         if ($fechaInicio && $fechaFin) {
@@ -181,7 +204,7 @@ class AbogadoController extends Controller
             });
         }
 
-        $expedientes = $query->latest()->get();
+        $expedientes = $query->latest('nuevos_expedientes.id')->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
