@@ -44,8 +44,8 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF8
 
             $columns = [
-                'ID Solicitud', 'Número Expediente Asignado', 'Nombre Asociado',
-                'Número de Documento', 'Fecha del Documento',
+                'ID Solicitud', 'Código Cliente', 'Número Producto',
+                'Número de Documento', 'Título/Nombre', 'Fecha del Documento',
                 'Agencia Remitente', 'Usuario Solicitante', 'Tipo de Retiro', 'Justificación',
                 'Fecha de Solicitud', 'Usuario que Autoriza (Despachador)',
                 'Fecha de Envío', 'Usuario de Entrega (Agencia)', 'Agencia Entregada',
@@ -57,8 +57,6 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
             fputcsv($file, $columns);
 
             $query = DB::table('solicitudes_expedientes')
-                ->leftJoin('nuevos_expedientes', 'solicitudes_expedientes.id_expediente', '=', 'nuevos_expedientes.id')
-                ->leftJoin('expedientes', 'solicitudes_expedientes.id_expediente_historico', '=', 'expedientes.id')
                 ->leftJoin('users as u_solicita', 'solicitudes_expedientes.id_usuario_solicitante', '=', 'u_solicita.id')
                 ->leftJoin('users as u_despacha', 'solicitudes_expedientes.id_usuario_despacho', '=', 'u_despacha.id')
                 ->leftJoin('users as u_entrega', 'solicitudes_expedientes.id_usuario_entrega', '=', 'u_entrega.id')
@@ -68,9 +66,10 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                 ->leftJoin('agencias as a_entrega', 'solicitudes_expedientes.id_agencia_entrega', '=', 'a_entrega.id')
                 ->select(
                     'solicitudes_expedientes.id',
-                    DB::raw("COALESCE(nuevos_expedientes.numero_documento, expedientes.numero_documento) as obj_numero_documento"),
-                    DB::raw("COALESCE(nuevos_expedientes.nombre_asociado, expedientes.asociado) as obj_nombre_asociado"),
+                    'solicitudes_expedientes.codigo_cliente',
+                    'solicitudes_expedientes.numero_producto',
                     'solicitudes_expedientes.numero_documento',
+                    'solicitudes_expedientes.titulo_nombre',
                     'solicitudes_expedientes.fecha_documento',
                     'a_remite.nombre as agencia_origen',
                     'u_solicita.name as nombre_solicitante',
@@ -122,9 +121,10 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
 
                     fputcsv($file, [
                         $row->id,
-                        $row->obj_numero_documento ?? 'SIN EXPEDIENTE',
-                        $row->obj_nombre_asociado ?? 'DESCONOCIDO',
+                        $row->codigo_cliente ?? 'SIN CÓDIGO',
+                        $row->numero_producto ?? 'SIN PRODUCTO',
                         $row->numero_documento,
+                        $row->titulo_nombre ?? 'SIN TÍTULO',
                         $fechaDoc,
                         $row->agencia_origen ?? 'SIN AGENCIA',
                         $row->nombre_solicitante ?? 'USUARIO BORRADO',
