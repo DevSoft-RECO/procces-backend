@@ -155,6 +155,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Supervisión Agencia
     Route::get('/supervision/agencia', [App\Http\Controllers\SupervisionAgenciaController::class, 'index']);
+    Route::get('/supervision/regiones', [App\Http\Controllers\SupervisorRegionesController::class, 'index']);
 
     // Tracking (Historial Centralizado)
     Route::get('/tracking/{codigo_cliente}', [App\Http\Controllers\TrackingController::class, 'getHistory']);

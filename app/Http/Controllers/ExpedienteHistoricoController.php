@@ -39,21 +39,13 @@ class ExpedienteHistoricoController extends Controller
     }
 
     /**
-     * Get unique agencies from the expedientes table.
+     * Get unique agencies from the database.
      */
     public function getAgencias()
     {
-        $agencias = Expediente::select('agencia')
-            ->whereNotNull('agencia')
-            ->where('agencia', '!=', '')
-            ->distinct()
-            ->orderBy('agencia', 'asc')
-            ->pluck('agencia');
+        $agencias = \App\Models\Agencia::orderBy('nombre', 'asc')->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $agencias
-        ]);
+        return response()->json($agencias);
     }
 
     /**
