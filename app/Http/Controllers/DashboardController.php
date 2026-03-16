@@ -37,55 +37,46 @@ class DashboardController extends Controller
         $endOfMonth = Carbon::parse($month)->endOfMonth();
         $agencyIds = $this->getAuthorizedAgencyId($request);
 
-        // ── Total real del mes: todos los expedientes de ese lote/mes ──────────
-        $totalMesQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
-        if ($agencyIds) $totalMesQuery->whereIn('id_agencia', $agencyIds);
-        $totalMes = $totalMesQuery->count();
+        // 1. Consolidated query for most KPIs
+        $query = DB::table('nuevos_expedientes')
+            ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
 
-        // ── Con seguimiento: de los del mes, cuántos ya tienen seguimiento ─────
-        $conSeguimientoQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->whereHas('seguimientos');
-        if ($agencyIds) $conSeguimientoQuery->whereIn('id_agencia', $agencyIds);
-        $conSeguimiento = $conSeguimientoQuery->count();
+        if ($agencyIds) {
+            $query->whereIn('id_agencia', $agencyIds);
+        }
 
-        // ── Finalizados del mes (id_estado = 11) ───────────────────────────────
-        $totalFinalized = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->whereHas('seguimientos', function($q) {
-                $q->where('id_estado', 11);
-            });
-        if ($agencyIds) $totalFinalized->whereIn('id_agencia', $agencyIds);
-        $totalFinalized = $totalFinalized->count();
+        $metrics = $query->select(
+            DB::raw('COUNT(*) as total_mes'),
+            DB::raw('SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id) THEN 1 ELSE 0 END) as con_seguimiento'),
+            DB::raw('SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes WHERE id_expediente = nuevos_expedientes.id AND id_estado = 11) THEN 1 ELSE 0 END) as total_finalized'),
+            DB::raw('SUM(monto_documento) as total_amount')
+        )->first();
 
-        // ── Monto total del mes ────────────────────────────────────────────────
-        $amountQuery = NuevoExpediente::whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
-        if ($agencyIds) $amountQuery->whereIn('id_agencia', $agencyIds);
-        $totalAmount = $amountQuery->sum('monto_documento');
-
-        // ── Tiempo promedio de cierre (expedientes finalizados del mes) ────────
+        // 2. Average Days (Still requires joins, but one query)
         $avgDaysQuery = DB::table('nuevos_expedientes')
-            ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
             ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->where('seguimiento_expedientes.id_estado', 11)
-            ->whereNotNull('seguimiento_fechas.f_almacenado_admin')
-            ->whereNotNull('nuevos_expedientes.fecha_inicio');
+            ->whereExists(function($q) {
+                $q->select(DB::raw(1))
+                  ->from('seguimiento_expedientes')
+                  ->whereColumn('seguimiento_expedientes.id_expediente', 'nuevos_expedientes.id')
+                  ->where('seguimiento_expedientes.id_estado', 11);
+            })
+            ->whereNotNull('seguimiento_fechas.f_almacenado_admin');
 
         if ($agencyIds) {
             $avgDaysQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
-        $avgDaysOpen = $avgDaysQuery
-            ->select(DB::raw('AVG(DATEDIFF(seguimiento_fechas.f_almacenado_admin, nuevos_expedientes.fecha_inicio)) as avg_days'))
-            ->value('avg_days');
+        $avgDaysOpen = $avgDaysQuery->avg(DB::raw('DATEDIFF(seguimiento_fechas.f_almacenado_admin, nuevos_expedientes.fecha_inicio)'));
 
         return response()->json([
-            'total_mes'        => $totalMes,          // Total real del mes
-            'con_seguimiento'  => $conSeguimiento,     // De esos, cuántos ya tienen seguimiento
-            'total_finalized'  => $totalFinalized,     // Finalizados del mes
-            'total_amount'     => $totalAmount,
+            'total_mes'        => (int)$metrics->total_mes,
+            'con_seguimiento'  => (int)$metrics->con_seguimiento,
+            'total_finalized'  => (int)$metrics->total_finalized,
+            'total_amount'     => (float)$metrics->total_amount,
             'avg_days_open'    => round($avgDaysOpen, 1),
-            // Compatibilidad hacia atrás
-            'total_active'     => $conSeguimiento,
+            'total_active'     => (int)$metrics->con_seguimiento, // Legacy compat
         ]);
     }
 
@@ -127,86 +118,70 @@ class DashboardController extends Controller
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
 
-        $query = NuevoExpediente::select(DB::raw('LOWER(usuario_asesor) as usuario_id'))
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->whereNotNull('usuario_asesor')
-                ->groupBy(DB::raw('LOWER(usuario_asesor)'));
+        // 1. aggregated query to get all metrics per advisor in ONE query
+        $query = DB::table('nuevos_expedientes')
+            ->select(
+                DB::raw('LOWER(nuevos_expedientes.usuario_asesor) as advisor_id'),
+                DB::raw('users.name as advisor_name'),
+                DB::raw('COUNT(*) as total_cases'),
+                DB::raw('SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM seguimiento_expedientes 
+                    WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id 
+                    AND seguimiento_expedientes.id_estado != 11
+                ) THEN 1 ELSE 0 END) as active_cases'),
+                DB::raw('SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM seguimiento_fechas 
+                    WHERE seguimiento_fechas.id_expediente = nuevos_expedientes.id 
+                    AND seguimiento_fechas.f_retorno_asesores IS NOT NULL
+                ) THEN 1 ELSE 0 END) as rejected_cases'),
+                DB::raw('SUM(CASE WHEN NOT EXISTS (
+                    SELECT 1 FROM seguimiento_expedientes 
+                    WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id
+                ) THEN 1 ELSE 0 END) as pending_cases')
+            )
+            ->leftJoin('users', DB::raw('LOWER(users.username)'), '=', DB::raw('LOWER(nuevos_expedientes.usuario_asesor)'))
+            ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
+            ->whereNotNull('nuevos_expedientes.usuario_asesor');
 
         if ($agencyIds) {
-            $query->whereIn('id_agencia', $agencyIds);
+            $query->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
-        $allAdvisors = $query->get();
+        $results = $query->groupBy(DB::raw('LOWER(nuevos_expedientes.usuario_asesor)'), 'users.name')
+            ->orderBy('active_cases', 'desc')
+            ->get();
 
-        $metrics = [];
+        $metrics = $results->map(function($row) {
+            $total = (int)$row->total_cases;
+            $rejected = (int)$row->rejected_cases;
+            $active = (int)$row->active_cases;
+            $pending = (int)$row->pending_cases;
 
-        foreach ($allAdvisors as $record) {
-            $advisorId = $record->usuario_id;
-            // Get the proper case for the display name if available from User model
-            $asesorModel = \App\Models\User::whereRaw('LOWER(username) = ?', [$advisorId])->first();
-            $advisorName = $asesorModel->name ?? $advisorId;
-
-            // Common query part - using LOWER to ensure all records match regardless of case
-            $baseQuery = NuevoExpediente::whereRaw('LOWER(usuario_asesor) = ?', [$advisorId])
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth]);
-
-            if ($agencyIds) {
-                $baseQuery->whereIn('id_agencia', $agencyIds);
-            }
-
-            $total = (clone $baseQuery)->count();
-
-            $active = (clone $baseQuery)
-                ->whereHas('seguimientos', function($q) { $q->where('id_estado', '!=', 11); })
-                ->count();
-
-            $rejectedCount = (clone $baseQuery)
-                ->whereHas('fechas', function($q) { $q->whereNotNull('f_retorno_asesores'); })
-                ->count();
-
-            $pendingCases = (clone $baseQuery)
-                ->whereDoesntHave('seguimientos')
-                ->count();
-
-             // Rejection Rate
-            $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
-
-            // Success Rate (Clean Cases / Total)
-            $cleanCount = $total - $rejectedCount;
-            $successRate = $total > 0 ? round(($cleanCount / $total) * 100, 1) : 0;
-
-            $metrics[] = [
-                'asesor' => $advisorName,
-                'advisor_id' => $advisorId,
+            return [
+                'asesor' => $row->advisor_name ?? $row->advisor_id,
+                'advisor_id' => $row->advisor_id,
                 'active_cases' => $active,
-                'rejected_cases' => $rejectedCount,
+                'rejected_cases' => $rejected,
                 'total_cases' => $total,
-                'rejection_rate' => $rate,
-                'success_rate' => $successRate,
-                'clean_cases' => $cleanCount,
-                'pending_cases' => $pendingCases ?? 0
+                'rejection_rate' => $total > 0 ? round(($rejected / $total) * 100, 1) : 0,
+                'success_rate' => $total > 0 ? round((($total - $rejected) / $total) * 100, 1) : 0,
+                'clean_cases' => $total - $rejected,
+                'pending_cases' => $pending
             ];
-        }
-
-        // Sort by active cases descending
-        usort($metrics, function($a, $b) {
-            return $b['active_cases'] <=> $a['active_cases'];
         });
 
         // Pagination
         $page = $request->input('page', 1);
         $perPage = 10;
-        $offset = ($page - 1) * $perPage;
-
-        $items = array_slice($metrics, $offset, $perPage);
-        $totalItems = count($metrics);
+        $totalItems = $metrics->count();
+        $items = $metrics->forPage($page, $perPage)->values();
 
         return response()->json([
             'data' => $items,
             'current_page' => (int)$page,
             'per_page' => $perPage,
             'total' => $totalItems,
-            'last_page' => ceil($totalItems / $perPage)
+            'last_page' => (int)ceil($totalItems / $perPage)
         ]);
     }
 
@@ -252,78 +227,70 @@ class DashboardController extends Controller
         $startOfMonth = Carbon::parse($month)->startOfMonth();
         $endOfMonth = Carbon::parse($month)->endOfMonth();
 
-        // If locked to a single agency, calculate only for that agency.
+        // Single aggregated query for ALL agencies
+        $query = DB::table('agencias')
+            ->leftJoin('nuevos_expedientes', function($join) use ($startOfMonth, $endOfMonth) {
+                $join->on('agencias.id', '=', 'nuevos_expedientes.id_agencia')
+                     ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth]);
+            })
+            ->select(
+                'agencias.nombre as agency_name',
+                DB::raw('COUNT(nuevos_expedientes.id) as total_cases'),
+                DB::raw('SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM seguimiento_expedientes 
+                    WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id 
+                    AND seguimiento_expedientes.id_estado != 11
+                ) THEN 1 ELSE 0 END) as active_cases'),
+                DB::raw('SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM seguimiento_fechas 
+                    WHERE seguimiento_fechas.id_expediente = nuevos_expedientes.id 
+                    AND seguimiento_fechas.f_retorno_asesores IS NOT NULL
+                ) THEN 1 ELSE 0 END) as rejected_cases'),
+                DB::raw('SUM(CASE WHEN nuevos_expedientes.id IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM seguimiento_expedientes 
+                    WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id
+                ) THEN 1 ELSE 0 END) as pending_cases')
+            );
+
         if ($agencyIds) {
-            $agencies = \App\Models\Agencia::whereIn('id', $agencyIds)->get();
-        } else {
-            $agencies = \App\Models\Agencia::all();
+            $query->whereIn('agencias.id', $agencyIds);
         }
 
-        $data = [];
+        $results = $query->groupBy('agencias.nombre')
+            ->orderBy('active_cases', 'desc')
+            ->get();
 
-        foreach ($agencies as $agency) {
-            $total = NuevoExpediente::where('id_agencia', $agency->id)
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->count();
+        $data = $results->filter(function($row) {
+            return (int)$row->total_cases > 0;
+        })->map(function($row) {
+            $total = (int)$row->total_cases;
+            $rejected = (int)$row->rejected_cases;
+            $active = (int)$row->active_cases;
+            $pending = (int)$row->pending_cases;
 
-            // Skip agencies with no activity in this month
-            if ($total === 0) continue;
-
-            $active = NuevoExpediente::where('id_agencia', $agency->id)
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->whereHas('seguimientos', function($q) { $q->where('id_estado', '!=', 11); })
-                ->count();
-
-            // Rejected at least once
-            $rejectedCount = NuevoExpediente::where('id_agencia', $agency->id)
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->whereHas('fechas', function($q){
-                        $q->whereNotNull('f_retorno_asesores');
-                })
-                ->count();
-
-            $pendingCases = NuevoExpediente::where('id_agencia', $agency->id)
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->whereDoesntHave('seguimientos')
-                ->count();
-
-            // Rejection Rate
-            $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
-
-            // Success Rate (Clean Cases / Total)
-            $cleanCount = $total - $rejectedCount;
-            $successRate = $total > 0 ? round(($cleanCount / $total) * 100, 1) : 0;
-
-            $data[] = [
-                'agency' => $agency->nombre,
+            return [
+                'agency' => $row->agency_name,
                 'active' => $active,
-                'rejected_cases' => $rejectedCount,
+                'rejected_cases' => $rejected,
                 'total' => $total,
-                'rejection_rate' => $rate,
-                'success_rate' => $successRate,
-                'pending_cases' => $pendingCases ?? 0
+                'rejection_rate' => $total > 0 ? round(($rejected / $total) * 100, 1) : 0,
+                'success_rate' => $total > 0 ? round((($total - $rejected) / $total) * 100, 1) : 0,
+                'pending_cases' => $pending
             ];
-        }
-
-        // Sort by active cases descending
-        usort($data, function($a, $b) {
-            return $b['active'] <=> $a['active'];
         });
 
         // Pagination
         $page = $request->input('page', 1);
         $perPage = 10;
-        $offset = ($page - 1) * $perPage;
-
-        $items = array_slice($data, $offset, $perPage);
-        $total = count($data);
+        $totalCount = $data->count();
+        $items = $data->forPage($page, $perPage)->values();
 
         return response()->json([
             'data' => $items,
             'current_page' => (int)$page,
             'per_page' => $perPage,
-            'total' => $total,
-            'last_page' => ceil($total / $perPage)
+            'total' => $totalCount,
+            'last_page' => (int)ceil($totalCount / $perPage)
         ]);
     }
 
@@ -333,33 +300,48 @@ class DashboardController extends Controller
     public function trends(Request $request)
     {
         $agencyIds = $this->getAuthorizedAgencyId($request);
+        $startDate = Carbon::now()->subMonths(5)->startOfMonth();
+        $endDate = Carbon::now()->endOfMonth();
+
+        // 1. Get Created counts grouped by Month
+        $createdQuery = DB::table('nuevos_expedientes')
+            ->select(
+                DB::raw("DATE_FORMAT(fecha_inicio, '%Y-%m') as month_label"),
+                DB::raw('COUNT(*) as count')
+            )
+            ->whereBetween('fecha_inicio', [$startDate, $endDate]);
+
+        if ($agencyIds) {
+            $createdQuery->whereIn('id_agencia', $agencyIds);
+        }
+
+        $createdData = $createdQuery->groupBy('month_label')->pluck('count', 'month_label');
+
+        // 2. Get Finalized counts grouped by Month
+        $finalizedQuery = DB::table('seguimiento_fechas')
+            ->join('nuevos_expedientes', 'seguimiento_fechas.id_expediente', '=', 'nuevos_expedientes.id')
+            ->select(
+                DB::raw("DATE_FORMAT(seguimiento_fechas.f_almacenado_admin, '%Y-%m') as month_label"),
+                DB::raw('COUNT(*) as count')
+            )
+            ->whereBetween('seguimiento_fechas.f_almacenado_admin', [$startDate, $endDate]);
+
+        if ($agencyIds) {
+            $finalizedQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
+        }
+
+        $finalizedData = $finalizedQuery->groupBy('month_label')->pluck('count', 'month_label');
+
+        // 3. Assemble the last 6 months list
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
-            $monthLabel = $date->format('Y-m');
-            $start = $date->copy()->startOfMonth();
-            $end = $date->copy()->endOfMonth();
-
-            // Created
-            $createdQuery = NuevoExpediente::whereBetween('fecha_inicio', [$start, $end]);
-            if ($agencyIds) $createdQuery->whereIn('id_agencia', $agencyIds);
-            $created = $createdQuery->count();
-
-            // Finalized (Based on archivado_at in seguimientos or f_almacenado_admin)
-            $finalizedQuery = SeguimientoFecha::whereBetween('f_almacenado_admin', [$start, $end]);
-            if ($agencyIds) {
-                // To filter SeguimientoFecha by agency requires join with nuevos_expedientes
-                $finalizedQuery = DB::table('seguimiento_fechas')
-                    ->join('nuevos_expedientes', 'seguimiento_fechas.id_expediente', '=', 'nuevos_expedientes.id')
-                    ->whereIn('nuevos_expedientes.id_agencia', $agencyIds)
-                    ->whereBetween('seguimiento_fechas.f_almacenado_admin', [$start, $end]);
-            }
-            $finalized = $finalizedQuery->count();
-
+            $label = $date->format('Y-m');
+            
             $months[] = [
-                'month' => $monthLabel,
-                'created' => $created,
-                'finalized' => $finalized
+                'month' => $label,
+                'created' => $createdData->get($label, 0),
+                'finalized' => $finalizedData->get($label, 0)
             ];
         }
 
