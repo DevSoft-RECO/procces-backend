@@ -39,8 +39,15 @@ class SecretariaCreditoController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('id', 'like', "%{$search}%")
                 ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                ->orWhere('codigo_cliente', 'like', "%{$search}%")
+                ->orWhere('numero_documento', 'like', "%{$search}%")
                 ->orWhere('cui', 'like', "%{$search}%");
             });
+        }
+
+        // Filtrar por Agencia
+        if ($request->filled('id_agencia')) {
+            $query->where('id_agencia', $request->id_agencia);
         }
 
         // Eager loading y paginación
@@ -139,10 +146,17 @@ class SecretariaCreditoController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('codigo_cliente', 'like', "%{$search}%")
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhere('codigo_cliente', 'like', "%{$search}%")
                   ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%")
                   ->orWhere('cui', 'like', "%{$search}%");
             });
+        }
+
+        // Filtrar por Agencia
+        if ($request->filled('id_agencia')) {
+            $query->where('id_agencia', $request->id_agencia);
         }
 
         $expedientes = $query->with([
@@ -258,10 +272,17 @@ class SecretariaCreditoController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('codigo_cliente', 'like', "%{$search}%")
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhere('codigo_cliente', 'like', "%{$search}%")
                   ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%")
                   ->orWhere('cui', 'like', "%{$search}%");
             });
+        }
+
+        // Filtrar por Agencia
+        if ($request->filled('id_agencia')) {
+            $query->where('id_agencia', $request->id_agencia);
         }
 
         $expedientes = $query->with([
