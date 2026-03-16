@@ -228,6 +228,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     // Edición de Garantías (Documentos) y Detalles
     Route::get('/documentos-edicion/search', [App\Http\Controllers\DocumentoEdicionController::class, 'search']);
     Route::put('/documentos-edicion/{id}', [App\Http\Controllers\DocumentoEdicionController::class, 'update']);
+    Route::delete('/documentos-edicion/{id}', [App\Http\Controllers\DocumentoEdicionController::class, 'destroy']);
     Route::get('/detalle-garantia-edicion/search', [App\Http\Controllers\DetalleGarantiaEdicionController::class, 'search']);
     Route::put('/detalle-garantia-edicion/{id}', [App\Http\Controllers\DetalleGarantiaEdicionController::class, 'update']);
     Route::get('/nuevo-expediente-edicion/search', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'search']);

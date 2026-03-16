@@ -63,4 +63,25 @@ class DocumentoEdicionController extends Controller
             'documento' => $documento
         ]);
     }
+
+    /**
+     * Remove the specified document from storage.
+     */
+    public function destroy($id)
+    {
+        $documento = Documento::findOrFail($id);
+
+        // Marcar expedientes como modificados antes de desvincular y borrar
+        SeguimientoExpediente::marcarModificacionPorDocumento($id);
+
+        // Desvincular de los expedientes (tabla pivot)
+        $documento->nuevosExpedientes()->detach();
+
+        // Eliminar el documento
+        $documento->delete();
+
+        return response()->json([
+            'message' => 'Documento eliminado correctamente'
+        ]);
+    }
 }
