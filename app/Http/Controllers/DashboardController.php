@@ -282,9 +282,10 @@ class DashboardController extends Controller
                 })
                 ->count();
 
-            $creditos = NuevoExpediente::where('id_agencia', $agency->id)
+            $pendingCases = NuevoExpediente::where('id_agencia', $agency->id)
                 ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->sum('monto_documento');
+                ->whereDoesntHave('seguimientos')
+                ->count();
 
             // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
@@ -300,7 +301,7 @@ class DashboardController extends Controller
                 'total' => $total,
                 'rejection_rate' => $rate,
                 'success_rate' => $successRate,
-                'creditos' => $creditos ?? 0
+                'pending_cases' => $pendingCases ?? 0
             ];
         }
 
