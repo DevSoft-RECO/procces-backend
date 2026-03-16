@@ -164,9 +164,9 @@ class DashboardController extends Controller
                 ->whereHas('fechas', function($q) { $q->whereNotNull('f_retorno_asesores'); })
                 ->count();
 
-            $creditos = (clone $baseQuery)
-                ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
-                ->sum('monto_documento');
+            $pendingCases = (clone $baseQuery)
+                ->whereDoesntHave('seguimientos')
+                ->count();
 
              // Rejection Rate
             $rate = $total > 0 ? round(($rejectedCount / $total) * 100, 1) : 0;
@@ -184,7 +184,7 @@ class DashboardController extends Controller
                 'rejection_rate' => $rate,
                 'success_rate' => $successRate,
                 'clean_cases' => $cleanCount,
-                'creditos' => $creditos ?? 0
+                'pending_cases' => $pendingCases ?? 0
             ];
         }
 
