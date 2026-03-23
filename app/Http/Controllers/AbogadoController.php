@@ -38,7 +38,7 @@ class AbogadoController extends Controller
 
         $expedientes = $query->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
-        }, 'fechas'])
+        }, 'fechas', 'agencia'])
         ->get();
 
         return response()->json([
