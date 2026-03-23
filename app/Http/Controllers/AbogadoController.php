@@ -138,14 +138,20 @@ class AbogadoController extends Controller
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
 
-        // Initial query with optimized fields
         $query = NuevoExpediente::select([
                 'nuevos_expedientes.id',
+                'nuevos_expedientes.id_agencia',
                 'nuevos_expedientes.codigo_cliente',
                 'nuevos_expedientes.nombre_asociado',
                 'nuevos_expedientes.numero_documento'
             ])
-            ->with(['fechas:id_expediente,f_enviado_secretaria_credito']);
+            ->with([
+                'fechas:id_expediente,f_enviado_secretaria_credito',
+                'agencia',
+                'seguimientos' => function($q) {
+                    $q->orderBy('created_at', 'desc');
+                }
+            ]);
 
         // FILTER: Current state must be 10 (Devolución a Secretaría)
         $query->whereHas('seguimientos', function ($q) {
