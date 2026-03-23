@@ -18,6 +18,24 @@ class NuevoExpedienteController extends Controller
     {
         $query = NuevoExpediente::query();
 
+        // Aplicar todos los filtros correspondientes
+        $this->applyFilters($query, $request);
+
+        $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
+            $query->orderBy('id_seguimiento', 'desc')->with('estado');
+        }])->orderBy('id', 'desc')->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
+
+    /**
+     * Aplica los filtros de rol, tab y búsqueda a la consulta dada.
+     */
+    private function applyFilters($query, Request $request)
+    {
         // Filtrar expedientes para que solo vea los de su usuario (case insensitive)
         // EXCEPCIÓN: Los Super Admin ven todo.
         if (auth()->check() && auth()->user()->username) {
@@ -59,24 +77,17 @@ class NuevoExpedienteController extends Controller
             }
         }
 
-        // Lógica de búsqueda actualizada
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('id', 'like', "%{$search}%")
-                    ->orWhere('numero_documento', 'like', "%{$search}%");
-                });
-            }
-
-        $expedientes = $query->with(['garantias', 'documentos.tipoDocumento', 'seguimientos' => function($query) {
-            $query->orderBy('id_seguimiento', 'desc')->with('estado');
-        }])->orderBy('id', 'desc')->paginate(10);
-
-        return response()->json([
-            'success' => true,
-            'data' => $expedientes
-        ]);
+        // Lógica de búsqueda
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%");
+            });
+        }
     }
+
 
     /**
      * Asociar una garantía a un expediente nuevo.
