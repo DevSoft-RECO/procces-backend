@@ -12,12 +12,31 @@ class AbogadoController extends Controller
      */
     public function buzon(Request $request)
     {
+        $user = $request->user();
+        $isSuperAdmin = $user->hasRole('Super Admin');
+
         // Fetch expedientes where the *latest* tracking status is 8 or 9
-        $expedientes = NuevoExpediente::whereHas('seguimientos', function ($query) {
+        $query = NuevoExpediente::whereHas('seguimientos', function ($query) {
             $query->whereIn('id_estado', [8, 9])
                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
-        })
-        ->with(['seguimientos' => function ($query) {
+        });
+
+        // ROLE RESTRICTIONS: If not Super Admin, only show expedientes assigned to their bufete
+        if (!$isSuperAdmin) {
+            $bufete = \App\Models\Bufete::where('user_id', $user->id)->first();
+            if (!$bufete) {
+                return response()->json([
+                    'success' => true,
+                    'data' => []
+                ]);
+            }
+            
+            $query->whereHas('seguimientos', function ($q) use ($bufete) {
+                $q->where('bufete_id', $bufete->id);
+            });
+        }
+
+        $expedientes = $query->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
         }, 'fechas'])
         ->get();
