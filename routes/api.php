@@ -16,11 +16,32 @@ Route::middleware('sso')->group(function () {
         $madreUrl = config('services.app_madre.url') ?? env('APP_MADRE_URL');
 
         try {
-            $response = Http::withToken($token) // Changed to use the facade directly
+            $response = Http::withToken($token)
                 ->get($madreUrl . '/api/user');
 
             if ($response->successful()) {
-                return $response->json();
+                $userData = $response->json();
+
+                // CRÍTICO: "Aplanar" Arrays de Objetos Spatie -> Strings puros para el Frontend
+                if (isset($userData['roles']) && is_array($userData['roles'])) {
+                    $userData['roles'] = array_map(function($r) { 
+                        return is_array($r) ? ($r['name'] ?? $r) : (is_object($r) ? ($r->name ?? $r) : $r); 
+                    }, $userData['roles']);
+                }
+
+                if (isset($userData['permisos']) && is_array($userData['permisos'])) {
+                    $userData['permisos'] = array_map(function($p) { 
+                        return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
+                    }, $userData['permisos']);
+                }
+
+                if (isset($userData['permissions']) && is_array($userData['permissions'])) {
+                    $userData['permissions'] = array_map(function($p) { 
+                        return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
+                    }, $userData['permissions']);
+                }
+
+                return response()->json($userData);
             } else {
                 return response()->json(['message' => 'Error validando con App Madre'], $response->status());
             }
