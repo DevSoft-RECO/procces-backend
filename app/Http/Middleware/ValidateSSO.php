@@ -48,13 +48,26 @@ class ValidateSSO
             );
 
             // 3. Inyectar Roles y Permisos (Transitorio, no BD)
-            // Estos vienen frescos del token/servicio y se usan para gates/policies en este request
-            $user->roles_list = $userData['roles'] ?? [];
-            $user->permissions_list = $userData['permissions'] ?? $userData['permisos'] ?? [];
+            // CRÍTICO: "Aplanar" Arrays de Objetos Spatie -> Strings puros
+            $roles = $userData['roles'] ?? [];
+            if (is_array($roles)) {
+                $roles = array_map(function($r) { 
+                    return is_array($r) ? ($r['name'] ?? $r) : (is_object($r) ? ($r->name ?? $r) : $r); 
+                }, $roles);
+            }
+
+            $permissions = $userData['permissions'] ?? $userData['permisos'] ?? [];
+            if (is_array($permissions)) {
+                $permissions = array_map(function($p) { 
+                    return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
+                }, $permissions);
+            }
+
+            $user->roles_list = $roles;
+            $user->permissions_list = $permissions;
             $user->agencia_data = $userData['agencia'] ?? null;
 
             // 4. Loguear al usuario en Laravel (Auth Facade)
-            // Esto permite usar auth()->user() o $request->user() en controladores
             Auth::login($user);
 
             return $next($request);
