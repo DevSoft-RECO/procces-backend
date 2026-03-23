@@ -104,6 +104,16 @@ class SeguimientoController extends Controller
             });
         }
 
+        // Lógica de búsqueda
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%");
+            });
+        }
+
         $expedientes = $query->with(['fechas', 'seguimientos.estado'])
             ->orderBy('fecha_inicio', 'desc')
             ->paginate(15);
