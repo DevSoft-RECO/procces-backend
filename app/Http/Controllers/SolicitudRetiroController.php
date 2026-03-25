@@ -470,9 +470,9 @@ class SolicitudRetiroController extends Controller
                 $documento = \App\Models\Documento::create($validated);
             }
 
-            // Update the Solicitud to point to this new document number
-            // and save its ID for state tracking.
+            // Update the Solicitud to point to this new document record and synchronize data
             $solicitud->numero_documento = $documento->numero;
+            $solicitud->fecha_documento = $documento->fecha; // Sincronizar fecha
             $solicitud->id_documento = $documento->id;
             $solicitud->save();
 
