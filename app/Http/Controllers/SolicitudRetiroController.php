@@ -238,10 +238,14 @@ class SolicitudRetiroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Buscar el documento real para amarrar el ID físico
+            // Buscar el documento real para amarrar el ID físico, considerando número Y fecha para evitar ambigüedad
             $documentoId = $request->id_documento;
-            if (!$documentoId && $request->numero_documento) {
-                $doc = \App\Models\Documento::where('numero', $request->numero_documento)->first();
+            if (!$documentoId && $request->numero_documento && $request->fecha_documento) {
+                // Parse date to ensure format consistency
+                $fechaDoc = Carbon::parse($request->fecha_documento)->format('Y-m-d');
+                $doc = \App\Models\Documento::where('numero', $request->numero_documento)
+                    ->whereDate('fecha', $fechaDoc)
+                    ->first();
                 if ($doc) {
                     $documentoId = $doc->id;
                 }
@@ -456,8 +460,15 @@ class SolicitudRetiroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Create the document with the number provided by the user
-            $documento = \App\Models\Documento::create($validated);
+            // Verificar si el documento ya está registrado físicamente basándose en número Y fecha
+            $documento = \App\Models\Documento::where('numero', $validated['numero'])
+                ->whereDate('fecha', Carbon::parse($validated['fecha'])->format('Y-m-d'))
+                ->first();
+
+            if (!$documento) {
+                // Create the document ONLY if it doesn't exist with that number and date
+                $documento = \App\Models\Documento::create($validated);
+            }
 
             // Update the Solicitud to point to this new document number
             // and save its ID for state tracking.
