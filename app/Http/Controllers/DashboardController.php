@@ -129,11 +129,10 @@ class DashboardController extends Controller
                     WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id 
                     AND seguimiento_expedientes.id_estado != 11
                 ) THEN 1 ELSE 0 END) as active_cases'),
-                DB::raw('SUM(CASE WHEN EXISTS (
-                    SELECT 1 FROM seguimiento_fechas 
-                    WHERE seguimiento_fechas.id_expediente = nuevos_expedientes.id 
-                    AND seguimiento_fechas.f_retorno_asesores IS NOT NULL
-                ) THEN 1 ELSE 0 END) as rejected_cases'),
+                DB::raw('SUM(
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                ) as rejected_cases'),
                 DB::raw('SUM(CASE WHEN NOT EXISTS (
                     SELECT 1 FROM seguimiento_expedientes 
                     WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id
@@ -198,11 +197,16 @@ class DashboardController extends Controller
         // We query expedientes that have EVER been returned.
 
         $rejections = NuevoExpediente::with(['agencia'])
-            ->whereHas('fechas', function($q) {
-                $q->whereNotNull('f_retorno_asesores');
-            })
-            ->select('usuario_asesor', 'id_agencia', DB::raw('count(*) as count'))
+            ->select(
+                'usuario_asesor',
+                'id_agencia',
+                DB::raw('SUM(
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                ) as count')
+            )
             ->groupBy('usuario_asesor', 'id_agencia')
+            ->having('count', '>', 0)
             ->get()
             ->map(function($item) {
                 return [
@@ -241,11 +245,10 @@ class DashboardController extends Controller
                     WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id 
                     AND seguimiento_expedientes.id_estado != 11
                 ) THEN 1 ELSE 0 END) as active_cases'),
-                DB::raw('SUM(CASE WHEN EXISTS (
-                    SELECT 1 FROM seguimiento_fechas 
-                    WHERE seguimiento_fechas.id_expediente = nuevos_expedientes.id 
-                    AND seguimiento_fechas.f_retorno_asesores IS NOT NULL
-                ) THEN 1 ELSE 0 END) as rejected_cases'),
+                DB::raw('SUM(
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                ) as rejected_cases'),
                 DB::raw('SUM(CASE WHEN nuevos_expedientes.id IS NOT NULL AND NOT EXISTS (
                     SELECT 1 FROM seguimiento_expedientes 
                     WHERE seguimiento_expedientes.id_expediente = nuevos_expedientes.id
