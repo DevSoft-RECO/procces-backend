@@ -98,7 +98,9 @@ class SolicitudRetiroController extends Controller
         }
 
         // 3. Obtener documentos y adjuntar metadatos de estado y reglas pivot
-        $documentosProcesados = $expediente->documentos->map(function($doc) use ($expediente) {
+        $isSuperAdmin = $request->user()->hasRole('Super Admin');
+
+        $documentosProcesados = $expediente->documentos->map(function($doc) use ($expediente, $isSuperAdmin) {
 
             // Reglas de Pivot (estado_fisico = activo, temporal, definitivo)
             $doc->estado_fisico = $doc->estado;
@@ -115,10 +117,10 @@ class SolicitudRetiroController extends Controller
                 return $exp->pivot->estado === 'activo';
             })->count();
 
-            // Retiro definitivo permitido si NO está amarrado a OTROS expedientes activos
-            $doc->permite_definitivo = !$doc->tiene_otros_activos;
-            // Retiro temporal permitido si al menos tiene UN expediente activo
-            $doc->permite_temporal = $totalActivos > 0;
+            // Retiro definitivo permitido si NO está amarrado a OTROS expedientes activos (O si es Super Admin)
+            $doc->permite_definitivo = $isSuperAdmin || !$doc->tiene_otros_activos;
+            // Retiro temporal permitido si al menos tiene UN expediente activo (O si es Super Admin)
+            $doc->permite_temporal = $isSuperAdmin || $totalActivos > 0;
 
             $doc->otros_activos_lista = $otrosActivosDesc->values()->map(function($exp) {
                 return [
@@ -168,9 +170,8 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Validar nuevamente que no esté bloqueado (Security Layer)
-        // Validar nuevamente que no esté bloqueado (Security Layer)
-        // Validar nuevamente que no esté bloqueado (Security Layer)
-        if (!$request->es_manual) {
+        // EXCEPCIÓN: Super Admin puede saltarse estas validaciones de negocio vinculadas
+        if (!$request->es_manual && !$user->hasRole('Super Admin')) {
             // Recuparar expediente contexto
             $expedienteId = $request->id_expediente;
             $numeroDoc = $request->numero_documento;
@@ -289,16 +290,19 @@ class SolicitudRetiroController extends Controller
         // Priorizar ID enviado desde frontend (Auth Store) y luego el del usuario
         $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
-        // Si el usuario no tiene agencia, retornar error o vacio
-        if (!$agencyId) {
-             return response()->json(['data' => []]);
+        $query = SolicitudRetiro::whereNotIn('estado_actual', [0, 5]) // Excluir Archivados/Finalizados y Entregados
+            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
+            ->orderBy('created_at', 'desc');
+
+        // Aplicar filtro de agencia solo si el usuario no es Super Admin o si se especificó una agencia
+        if (!$user->hasRole('Super Admin') || $agencyId) {
+             if (!$agencyId) {
+                  return response()->json(['data' => []]);
+             }
+             $query->where('id_agencia', $agencyId);
         }
 
-        $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
-            ->whereNotIn('estado_actual', [0, 5]) // Excluir Archivados/Finalizados y Entregados
-            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10); // Paginación de 10 elementos
+        $solicitudes = $query->paginate(10); // Paginación de 10 elementos
 
         return response()->json($solicitudes);
     }
@@ -311,17 +315,19 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $query = SolicitudRetiro::whereIn('estado_actual', [0, 5]) // Solo Archivados/Finalizados y Entregados
+            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
+            ->orderBy('updated_at', 'desc');
 
-        if (!$agencyId) {
-             return response()->json(['data' => []]);
+        // Si es Super Admin puede ver todo si no manda agencia
+        if (!$user->hasRole('Super Admin') || $agencyId) {
+             if (!$agencyId) {
+                 return response()->json(['data' => []]);
+             }
+             $query->where('id_agencia', $agencyId);
         }
 
-        $solicitudes = SolicitudRetiro::where('id_agencia', $agencyId)
-            ->whereIn('estado_actual', [0, 5]) // Solo Archivados/Finalizados y Entregados
-            ->with(['solicitante', 'despachador', 'expedienteHistorico'])
-            ->orderBy('updated_at', 'desc') // Ordenar por fecha de finalización
-            ->paginate(10);
+        $solicitudes = $query->paginate(10);
 
         return response()->json($solicitudes);
     }
@@ -499,17 +505,20 @@ class SolicitudRetiroController extends Controller
         // Priorizar ID desde request o usar el del usuario
         $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
-        if (!$agencyId) {
-            return response()->json(['data' => []]);
-        }
-
         // Buscar solicitudes donde la agencia de ENTREGA sea la del usuario
         // Y el estado sea > 1 (Enviado)
-        $solicitudes = SolicitudRetiro::where('id_agencia_entrega', $agencyId)
-            ->whereIn('estado_actual', [2, 3]) // Temporal o Definitivo
+        $query = SolicitudRetiro::whereIn('estado_actual', [2, 3]) // Temporal o Definitivo
             ->with(['solicitante', 'despachador', 'entregador', 'agencia', 'documento', 'expedienteHistorico']) // Entregador puede ser null aun
-            ->orderBy('fecha_envio', 'desc')
-            ->paginate(10);
+            ->orderBy('fecha_envio', 'desc');
+
+        if (!$user->hasRole('Super Admin') || $agencyId) {
+             if (!$agencyId) {
+                 return response()->json(['data' => []]);
+             }
+             $query->where('id_agencia_entrega', $agencyId);
+        }
+
+        $solicitudes = $query->paginate(10);
 
         return response()->json($solicitudes);
     }
@@ -550,20 +559,22 @@ class SolicitudRetiroController extends Controller
         // Priorizar ID desde request o usar el del usuario
         $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
 
-        if (!$agencyId) {
-            return response()->json(['data' => []]);
+        // Buscar solicitudes (Estado 4) donde la agencia sea ORIGEN o DESTINO
+        $query = \App\Models\SolicitudRetiro::where('estado_actual', 4)
+            ->with(['solicitante', 'agencia', 'agenciaEntrega'])
+            ->orderBy('updated_at', 'desc');
+
+        if (!$user->hasRole('Super Admin') || $agencyId) {
+             if (!$agencyId) {
+                 return response()->json(['data' => []]);
+             }
+             $query->where(function($q) use ($agencyId) {
+                 $q->where('id_agencia_entrega', $agencyId)
+                   ->orWhere('id_agencia', $agencyId);
+             });
         }
 
-        // Buscar solicitudes (Estado 4) donde la agencia sea ORIGEN o DESTINO
-        // El usuario pidió ver SOLICITADOS por su agencia O ENVIADOS a su agencia.
-        $solicitudes = \App\Models\SolicitudRetiro::where('estado_actual', 4)
-            ->where(function($query) use ($agencyId) {
-                $query->where('id_agencia_entrega', $agencyId)
-                      ->orWhere('id_agencia', $agencyId);
-            })
-            ->with(['solicitante', 'agencia', 'agenciaEntrega'])
-            ->orderBy('updated_at', 'desc')
-            ->paginate(10);
+        $solicitudes = $query->paginate(10);
 
         return response()->json($solicitudes);
     }
@@ -635,38 +646,32 @@ class SolicitudRetiroController extends Controller
         $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
         $role = $request->input('role'); // 'local_delivery' | 'external_delivery' | 'request'
 
-        if (!$agencyId) {
-             return response()->json(['data' => []]);
-        }
-
         $query = \App\Models\SolicitudRetiro::where('estado_actual', 5)
             ->with(['solicitante', 'agencia', 'agenciaEntrega', 'entregador'])
             ->orderBy('updated_at', 'desc');
 
-        if ($role === 'local_delivery') {
-            // Creadas por MI agencia Y entregadas por MI agencia
-            $query->where('id_agencia', $agencyId)
-                  ->where('id_agencia_entrega', $agencyId);
+        // Si es Super Admin y no hay agencia, no filtramos por agencia (ve todo)
+        if (!$user->hasRole('Super Admin') || $agencyId) {
+            if (!$agencyId) {
+                 return response()->json(['data' => []]);
+            }
 
-        } else if ($role === 'external_delivery') {
-             // Creadas por OTRAS agencias Y entregadas por MI agencia
-             $query->where('id_agencia', '!=', $agencyId)
-                   ->where('id_agencia_entrega', $agencyId);
-
-        } else if ($role === 'delivery') {
-            // General: entregadas por MI agencia (sin importar origen) - Mantenido por compatibilidad
-            $query->where('id_agencia_entrega', $agencyId);
-
-        } else if ($role === 'request') {
-             // Solicitadas por MI agencia (sin importar quien entregó)
-             $query->where('id_agencia', $agencyId);
-
-        } else {
-             // Fallback: ambas
-             $query->where(function($q) use ($agencyId) {
-                 $q->where('id_agencia_entrega', $agencyId)
-                   ->orWhere('id_agencia', $agencyId);
-             });
+            if ($role === 'local_delivery') {
+                $query->where('id_agencia', $agencyId)
+                      ->where('id_agencia_entrega', $agencyId);
+            } else if ($role === 'external_delivery') {
+                 $query->where('id_agencia', '!=', $agencyId)
+                       ->where('id_agencia_entrega', $agencyId);
+            } else if ($role === 'delivery') {
+                $query->where('id_agencia_entrega', $agencyId);
+            } else if ($role === 'request') {
+                 $query->where('id_agencia', $agencyId);
+            } else {
+                 $query->where(function($q) use ($agencyId) {
+                     $q->where('id_agencia_entrega', $agencyId)
+                       ->orWhere('id_agencia', $agencyId);
+                 });
+            }
         }
 
         $solicitudes = $query->paginate(10);
