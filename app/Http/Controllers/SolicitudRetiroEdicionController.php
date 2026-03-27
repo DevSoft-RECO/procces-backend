@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\SolicitudRetiro;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class SolicitudRetiroEdicionController extends Controller
 {
+    protected $disk = 'gcs';
     /**
      * Search for SolicitudRetiro records by numero_documento and optionally fecha_documento.
      */
@@ -54,15 +57,49 @@ class SolicitudRetiroEdicionController extends Controller
             'id_usuario_entrega' => 'nullable|exists:users,id',
             'id_agencia_entrega' => 'nullable|exists:agencias,id',
             'estado_actual' => 'sometimes|required|integer',
+            'evidencia' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
-        $solicitud->update($validatedData);
+        try {
+            DB::beginTransaction();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Solicitud de retiro actualizada correctamente.',
-            'solicitud' => $solicitud
-        ]);
+            // Handle file upload
+            if ($request->hasFile('evidencia')) {
+                // Delete old file if exists
+                if ($solicitud->evidencia_entrega_path) {
+                    Storage::disk($this->disk)->delete($solicitud->evidencia_entrega_path);
+                }
+
+                $file = $request->file('evidencia');
+                $numDoc = $validatedData['numero_documento'] ?? $solicitud->numero_documento ?? 'S-N';
+                $extension = $file->getClientOriginalExtension();
+                $filename = "EVI-{$numDoc}-" . time() . ".{$extension}"; // Added timestamp to avoid cache/collision
+                $folder = 'sadec/retiro_garantia';
+
+                $path = Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
+                $validatedData['evidencia_entrega_path'] = $path;
+            }
+
+            // Remove 'evidencia' from validated data as it's not a column
+            unset($validatedData['evidencia']);
+
+            $solicitud->update($validatedData);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Solicitud de retiro actualizada correctamente.',
+                'solicitud' => $solicitud
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la solicitud: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
