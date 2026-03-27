@@ -315,6 +315,8 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
+        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+
         $query = SolicitudRetiro::whereIn('estado_actual', [0, 5]) // Solo Archivados/Finalizados y Entregados
             ->with(['solicitante', 'despachador', 'expedienteHistorico'])
             ->orderBy('updated_at', 'desc');
