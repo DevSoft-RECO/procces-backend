@@ -288,7 +288,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID enviado desde frontend (Auth Store) y luego el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $agencyId = $user->hasRole('Super Admin') ? $request->input('id_agencia') : ($request->input('id_agencia') ?? $user->id_agencia);
 
         $query = SolicitudRetiro::whereNotIn('estado_actual', [0, 5]) // Excluir Archivados/Finalizados y Entregados
             ->with(['solicitante', 'despachador', 'expedienteHistorico'])
@@ -315,7 +315,7 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $agencyId = $user->hasRole('Super Admin') ? $request->input('id_agencia') : ($request->input('id_agencia') ?? $user->id_agencia);
 
         $query = SolicitudRetiro::whereIn('estado_actual', [0, 5]) // Solo Archivados/Finalizados y Entregados
             ->with(['solicitante', 'despachador', 'expedienteHistorico'])
@@ -505,7 +505,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID desde request o usar el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $agencyId = $user->hasRole('Super Admin') ? $request->input('id_agencia') : ($request->input('id_agencia') ?? $user->id_agencia);
 
         // Buscar solicitudes donde la agencia de ENTREGA sea la del usuario
         // Y el estado sea > 1 (Enviado)
@@ -559,7 +559,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Priorizar ID desde request o usar el del usuario
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $agencyId = $user->hasRole('Super Admin') ? $request->input('id_agencia') : ($request->input('id_agencia') ?? $user->id_agencia);
 
         // Buscar solicitudes (Estado 4) donde la agencia sea ORIGEN o DESTINO
         $query = \App\Models\SolicitudRetiro::where('estado_actual', 4)
@@ -645,7 +645,7 @@ class SolicitudRetiroController extends Controller
     {
         $user = Auth::user();
 
-        $agencyId = $request->input('id_agencia') ?? $user->id_agencia;
+        $agencyId = $user->hasRole('Super Admin') ? $request->input('id_agencia') : ($request->input('id_agencia') ?? $user->id_agencia);
         $role = $request->input('role'); // 'local_delivery' | 'external_delivery' | 'request'
 
         $query = \App\Models\SolicitudRetiro::where('estado_actual', 5)
