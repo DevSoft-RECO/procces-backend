@@ -35,6 +35,27 @@ class ExportacionSegaController extends Controller
     }
 
     /**
+     * Inicia un trabajo en segundo plano para exportar el Histórico de Archivo (Expedientes).
+     */
+    public function dispatchHistoricoArchivo(Request $request)
+    {
+        $reporte = ReporteExportacion::create([
+            'usuario_id' => auth()->id() ?? 1,
+            'tipo_reporte' => 'historico_archivo',
+            'estado' => 'pendiente',
+            'progreso_porcentaje' => 0
+        ]);
+
+        \App\Jobs\GenerarReporteHistoricoArchivoJob::dispatch($reporte->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reporte histórico enviado a la cola.',
+            'reporte_id' => $reporte->id
+        ], 202);
+    }
+
+    /**
      * Lista los reportes solicitados por el usuario para armar la bandeja frontal.
      */
     public function listReports(Request $request)
@@ -44,7 +65,8 @@ class ExportacionSegaController extends Controller
         $reportes = ReporteExportacion::where('usuario_id', $userId)
             ->whereIn('tipo_reporte', [
                 'seguimiento_csv', 'general_agencias', 'general_asesor',
-                'general_documentos', 'general_solicitudes_admin', 'general_solicitudes_retiros', 'general_confirmaciones'
+                'general_documentos', 'general_solicitudes_admin', 'general_solicitudes_retiros', 'general_confirmaciones',
+                'historico_archivo'
             ])
             ->orderBy('created_at', 'desc')
             ->take(10) // Mostrar últimos 10 de su bandeja

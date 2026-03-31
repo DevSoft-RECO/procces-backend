@@ -189,6 +189,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::post('/exportar/general-solicitudes-admin', [\App\Http\Controllers\Seguimiento\ReporteSolicitudesAdminController::class, 'dispatchReport']);
     Route::post('/exportar/general-solicitudes-retiros', [\App\Http\Controllers\Seguimiento\ReporteSolicitudesRetiroController::class, 'dispatchReport']);
     Route::post('/exportar/general-confirmaciones', [\App\Http\Controllers\Seguimiento\ReporteConfirmacionesController::class, 'dispatchReport']);
+    Route::post('/exportar/historico-archivo', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'dispatchHistoricoArchivo']);
     Route::get('/exportar/mis-reportes', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'listReports']);
     Route::get('/exportar/descargar/{id}', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'downloadReport']);
     Route::delete('/exportar/borrar-todos', [\App\Http\Controllers\Seguimiento\ExportacionSegaController::class, 'destroyAll']);
