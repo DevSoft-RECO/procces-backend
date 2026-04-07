@@ -78,26 +78,26 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                 $query->chunk($chunkSize, function ($expedientes) use ($file, &$processedRecords, $totalRecords, $reporte) {
                     foreach ($expedientes as $row) {
                         fputcsv($file, [
-                            $row->id, 
-                            $row->codigo_cliente, 
-                            $row->agencia, 
-                            $row->fecha_inicio, 
-                            $row->cta_bw,
-                            $row->numero_documento, 
-                            $row->cif, 
-                            $row->asociado, 
-                            $row->monto, 
-                            $row->tipo_garantia,
-                            $row->datos_garantia, 
-                            $row->contrato, 
-                            $row->inscripcion_otros_contratos,
-                            $row->ingreso, 
-                            $row->inventario, 
-                            $row->salida, 
-                            $row->observacion, 
-                            $row->estado,
-                            $row->localizacion, 
-                            $row->created_at
+                            $this->sanitizeValue($row->id), 
+                            $this->sanitizeValue($row->codigo_cliente), 
+                            $this->sanitizeValue($row->agencia), 
+                            $this->sanitizeValue($row->fecha_inicio), 
+                            $this->sanitizeValue($row->cta_bw),
+                            $this->sanitizeValue($row->numero_documento), 
+                            $this->sanitizeValue($row->cif), 
+                            $this->sanitizeValue($row->asociado), 
+                            $this->sanitizeValue($row->monto), 
+                            $this->sanitizeValue($row->tipo_garantia),
+                            $this->sanitizeValue($row->datos_garantia), 
+                            $this->sanitizeValue($row->contrato), 
+                            $this->sanitizeValue($row->inscripcion_otros_contratos),
+                            $this->sanitizeValue($row->ingreso), 
+                            $this->sanitizeValue($row->inventario), 
+                            $this->sanitizeValue($row->salida), 
+                            $this->sanitizeValue($row->observacion), 
+                            $this->sanitizeValue($row->estado),
+                            $this->sanitizeValue($row->localizacion), 
+                            $this->sanitizeValue($row->created_at)
                         ], ',', '"', '"');
                     }
                     $processedRecords += count($expedientes);
@@ -128,5 +128,33 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                 'error_msg' => 'Fallo la generación: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Limpia y normaliza un valor para evitar que rompa el formato del CSV.
+     * Especialmente útil para datos antiguos con codificación mixta o símbolos extraños.
+     */
+    private function sanitizeValue($value)
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        // Asegurar que sea string
+        $value = (string)$value;
+
+        // Limpiar saltos de línea y tabulaciones que rompen la estructura de filas
+        $value = str_replace(["\r\n", "\r", "\n", "\t"], " ", $value);
+
+        // Convertir codificación si es necesario para evitar caracteres rotos (como NÃšMERO)
+        // Intentamos detectar si es UTF-8, si no, intentamos convertir desde ISO-8859-1
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+        }
+
+        // Eliminar caracteres nulos o de control extraños
+        $value = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
+
+        return trim($value);
     }
 }
