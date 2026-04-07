@@ -256,6 +256,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     Route::get('/nuevo-expediente-edicion/search', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'search']);
     Route::get('/nuevo-expediente-edicion/catalogs', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'getCatalogs']);
     Route::put('/nuevo-expediente-edicion/{id}', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'update']);
+    Route::delete('/nuevo-expediente-edicion/{id}', [App\Http\Controllers\NuevoExpedienteEdicionController::class, 'destroy']);
 
     Route::get('/solicitud-administrativa-edicion/search', [App\Http\Controllers\SolicitudAdministrativaEdicionController::class, 'search']);
     Route::get('/solicitud-administrativa-edicion/catalogs', [App\Http\Controllers\SolicitudAdministrativaEdicionController::class, 'getCatalogs']);

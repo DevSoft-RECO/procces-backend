@@ -81,4 +81,18 @@ class NuevoExpedienteEdicionController extends Controller
             'asesores' => $asesores
         ]);
     }
+
+    /**
+     * Delete a NuevoExpediente record.
+     */
+    public function destroy($id)
+    {
+        $expediente = NuevoExpediente::findOrFail($id);
+        $expediente->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expediente eliminado correctamente.'
+        ]);
+    }
 }
