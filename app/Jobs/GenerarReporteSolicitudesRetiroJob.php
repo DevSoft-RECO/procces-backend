@@ -54,7 +54,7 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                 'Fecha Confirmada de Ingreso', 'Usuario Central (Recibió Física)',
                 'Fecha Creación Fila', 'Última Modificación'
             ];
-            fputcsv($file, $columns);
+            fputcsv($file, $columns, ',', '"', '"');
 
             $query = DB::table('solicitudes_expedientes')
                 ->leftJoin('users as u_solicita', 'solicitudes_expedientes.id_usuario_solicitante', '=', 'u_solicita.id')
@@ -144,7 +144,7 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                         $row->agente_confirmacion_retorno ?? 'SIN ASIGNAR',
                         $row->created_at,
                         $row->updated_at
-                    ]);
+                    ], ',', '"', '"');
                 }
                 $processedRecords += count($retiros);
                 $percentage = min(99, 10 + round(($processedRecords / $totalRecords) * 89));

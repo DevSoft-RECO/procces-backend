@@ -56,7 +56,7 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                 'Localización', 'Fecha Registro'
             ];
 
-            fputcsv($file, $columns);
+            fputcsv($file, $columns, ',', '"', '"');
 
             $query = DB::table('expedientes')
                 ->select(
@@ -98,7 +98,7 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                             $row->estado,
                             $row->localizacion, 
                             $row->created_at
-                        ]);
+                        ], ',', '"', '"');
                     }
                     $processedRecords += count($expedientes);
                     $porcentaje = min(95, ceil(($processedRecords / $totalRecords) * 100));

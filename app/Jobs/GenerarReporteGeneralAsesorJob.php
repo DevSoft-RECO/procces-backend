@@ -69,7 +69,7 @@ class GenerarReporteGeneralAsesorJob implements ShouldQueue
                 'Fec. Aceptado Sec. Crédito', 'Fec. Enviado Abogado', 'Fec. Aceptado Abogado',
                 'Fec. Enviado Secret. Crédito', 'Archivado At (Finalizado)'
             ];
-            fputcsv($file, $columns);
+            fputcsv($file, $columns, ',', '"', '"');
 
             $query = DB::table('nuevos_expedientes')
                 ->leftJoin('seguimiento_expedientes as se', 'nuevos_expedientes.id', '=', 'se.id_expediente')
@@ -121,7 +121,7 @@ class GenerarReporteGeneralAsesorJob implements ShouldQueue
                             $row->f_aceptado_secretaria, $row->f_enviado_archivos, $row->f_enviado_protocolos,
                             $row->f_almacenado_admin, $row->f_aceptado_secretaria_credito, $row->f_enviado_abogado,
                             $row->f_aceptado_abogado, $row->f_enviado_secretaria_credito, $row->archivado_at
-                        ]);
+                        ], ',', '"', '"');
                 }
 
                 $processedRecords += count($expedientes);
