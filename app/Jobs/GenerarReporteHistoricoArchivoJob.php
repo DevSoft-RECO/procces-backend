@@ -56,7 +56,9 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                 'Localización', 'Fecha Registro'
             ];
 
-            fputcsv($file, $columns, ',', '"', '"');
+            // Cambiaremos el delimitador a PUNTO Y COMA (;) que es el estándar más robusto para Excel en español
+            // Esto evita problemas si hay comas o puntos decimales en los datos.
+            fputcsv($file, $columns, ';', '"', '"');
 
             $query = DB::table('expedientes')
                 ->select(
@@ -88,7 +90,7 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                             $this->sanitizeValue($row->asociado), 
                             $this->sanitizeValue($row->monto), 
                             $this->sanitizeValue($row->tipo_garantia),
-                            $this->sanitizeValue($row->datos_garantia), 
+                            $this->sanitizeValue($row->datos_garantia, true), // Columna problemática
                             $this->sanitizeValue($row->contrato), 
                             $this->sanitizeValue($row->inscripcion_otros_contratos),
                             $this->sanitizeValue($row->ingreso), 
@@ -98,7 +100,7 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
                             $this->sanitizeValue($row->estado),
                             $this->sanitizeValue($row->localizacion), 
                             $this->sanitizeValue($row->created_at)
-                        ], ',', '"', '"');
+                        ], ';', '"', '"');
                     }
                     $processedRecords += count($expedientes);
                     $porcentaje = min(95, ceil(($processedRecords / $totalRecords) * 100));
@@ -134,7 +136,7 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
      * Limpia y normaliza un valor para evitar que rompa el formato del CSV.
      * Especialmente útil para datos antiguos con codificación mixta o símbolos extraños.
      */
-    private function sanitizeValue($value)
+    private function sanitizeValue($value, $isProblematicColumn = false)
     {
         if ($value === null) {
             return '';
@@ -143,17 +145,30 @@ class GenerarReporteHistoricoArchivoJob implements ShouldQueue
         // Asegurar que sea string
         $value = (string)$value;
 
-        // Limpiar saltos de línea y tabulaciones que rompen la estructura de filas
+        // 1. Limpiar saltos de línea y tabulaciones que rompen la estructura de filas
         $value = str_replace(["\r\n", "\r", "\n", "\t"], " ", $value);
 
-        // Convertir codificación si es necesario para evitar caracteres rotos (como NÃšMERO)
-        // Intentamos detectar si es UTF-8, si no, intentamos convertir desde ISO-8859-1
+        // 2. Reemplazar espacios especiales (No-breaking spaces) que confunden a algunos editores
+        $value = str_replace("\xc2\xa0", ' ', $value);
+
+        // 3. Convertir codificación si es necesario para evitar caracteres rotos (como NÃšMERO)
         if (!mb_check_encoding($value, 'UTF-8')) {
             $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
         }
 
-        // Eliminar caracteres nulos o de control extraños
+        // 4. Eliminar caracteres de control (0-31) pero mantener caracteres extendidos válidos
+        // Esto elimina bytes nulos y otros símbolos invisibles que rompen parsers.
         $value = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
+
+        // 5. Blindaje específico para columnas con mucho texto sucio
+        if ($isProblematicColumn) {
+            // Reemplazar comillas dobles inteligentes o pegadas que puedan venir de Word/OCR
+            $value = str_replace(['“', '”', '„', '‟'], '"', $value);
+            
+            // Si el texto termina en una comilla suelta, suele ser un error de la data vieja
+            // que confunde al cierre del fputcsv. Limpiamos comillas extremas.
+            $value = trim($value, '"');
+        }
 
         return trim($value);
     }
