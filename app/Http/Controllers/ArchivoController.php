@@ -185,6 +185,14 @@ class ArchivoController extends Controller
                     if ($doc->folio) $partes[] = "Folio: {$doc->folio}";
                     if ($doc->libro) $partes[] = "Libro: {$doc->libro}";
                     if ($doc->propietario) $partes[] = "Propietario: {$doc->propietario}";
+                    if ($doc->autorizador) $partes[] = "Autorizador/Notario: {$doc->autorizador}";
+                    if ($doc->no_dominio) $partes[] = "Dominio: {$doc->no_dominio}";
+                    if ($doc->referencia) $partes[] = "Referencia: {$doc->referencia}";
+                    if ($doc->monto_poliza) $partes[] = "Monto: {$doc->monto_poliza}";
+                    if ($doc->observacion) $partes[] = "Observación: {$doc->observacion}";
+
+
+
 
                     // Unimos las partes de cada documento con comas
                     $textosDocumentos[] = implode(', ', $partes);
