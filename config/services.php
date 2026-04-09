@@ -36,11 +36,11 @@ return [
     ],
 
     'app_madre' => [
-        'url' => env('APP_MADRE_URL', 'http://localhost:8000'),
+        'url' => env('APP_MADRE_URL'),
     ],
 
     'app_frontend' => [
-        'url' => env('APP_URL_FRONTEND', 'http://localhost:5173'),
+        'url' => env('APP_URL_FRONTEND'),
     ],
 
 ];
