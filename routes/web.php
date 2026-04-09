@@ -8,6 +8,6 @@ Route::get('/', function () {
 
 Route::get('/login', function () {
     // Si falla el JWT y Laravel intenta redirigir al "login", lo mandamos de vuelta al portal Madre
-    $frontendUrl = env('APP_URL_FRONTEND');
+    $frontendUrl = config('services.app_frontend.url');
     return redirect($frontendUrl . '/login?session_expired=true');
 })->name('login');
