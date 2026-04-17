@@ -7,9 +7,11 @@ use App\Models\NuevoExpediente;
 use App\Models\SeguimientoExpediente;
 use App\Models\SeguimientoFecha;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EditarSeguimientoController extends Controller
 {
+    protected $disk = 'gcs';
     /**
      * Buscar expediente por ID o Número de Documento.
      * Carga relaciones de seguimiento y fechas.
@@ -65,10 +67,32 @@ class EditarSeguimientoController extends Controller
 
             // 1. Actualizar SeguimientoExpediente
             // Usamos updateOrCreate para asegurar que exista
-            $seguimientoData = $request->input('seguimiento', []);
+            $seguimientoData = is_string($request->input('seguimiento')) 
+                ? json_decode($request->input('seguimiento'), true) 
+                : $request->input('seguimiento', []);
 
-            // Filtrar campos nulos o vacíos si es necesario, o dejar que el frontend mande todo
-            // Por seguridad, usar only() con los campos permitidos definidos en el plan
+            // Manejo de Archivo si se proporciona
+            if ($request->hasFile('file_contrato')) {
+                $file = $request->file('file_contrato');
+                
+                // Buscar seguimiento actual para eliminar archivo viejo
+                $existingSeguimiento = SeguimientoExpediente::where('id_expediente', $id)->first();
+                if ($existingSeguimiento && $existingSeguimiento->path_contrato) {
+                    if (Storage::disk($this->disk)->exists($existingSeguimiento->path_contrato)) {
+                        Storage::disk($this->disk)->delete($existingSeguimiento->path_contrato);
+                    }
+                }
+
+                // Nomenclatura Estándar: CTO-numero_documento.ext
+                $extension = $file->getClientOriginalExtension();
+                $numDoc = $expediente->numero_documento ?? 'S-N';
+                $filename = "CTO-{$numDoc}.{$extension}";
+
+                $folder = 'sadec/expedientes/contratos_escaneados';
+                $path = Storage::disk($this->disk)->putFileAs($folder, $file, $filename);
+
+                $seguimientoData['path_contrato'] = $path;
+            }
 
             SeguimientoExpediente::updateOrCreate(
                 ['id_expediente' => $id],
@@ -76,7 +100,9 @@ class EditarSeguimientoController extends Controller
             );
 
             // 2. Actualizar SeguimientoFecha
-            $fechasData = $request->input('fechas', []);
+            $fechasData = is_string($request->input('fechas'))
+                ? json_decode($request->input('fechas'), true)
+                : $request->input('fechas', []);
 
             SeguimientoFecha::updateOrCreate(
                 ['id_expediente' => $id],
