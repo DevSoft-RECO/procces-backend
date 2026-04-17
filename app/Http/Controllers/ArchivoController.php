@@ -342,6 +342,76 @@ public function show($id_seguimiento)
     }
 
     return response()->json(['success' => true, 'data' => $detalle]);
-}
+    }
 
+    /**
+     * Listado de expedientes pendientes por ingreso (pre-llegada al buzón).
+     * Filtro: enviado_a_archivos = 'No' Y observacion_envio != null
+     * Excluye aquellos que ya están en Estado 4.
+     */
+    /**
+     * Listado de expedientes pendientes por ingreso (pre-llegada al buzón).
+     * Filtro: enviado_a_archivos = 'No' Y observacion_envio != null
+     * Excluye aquellos que ya están en Estado 4.
+     */
+    public function pendientesIngreso(Request $request)
+    {
+        $query = NuevoExpediente::query()
+            ->select([
+                'id',
+                'id_agencia',
+                'codigo_cliente',
+                'cui',
+                'nombre_asociado',
+                'tasa_interes',
+                'monto_documento',
+                'numero_documento',
+                'fecha_inicio'
+            ])
+            ->whereHas('seguimientos', function ($q) {
+                $q->where('enviado_a_archivos', 'No')
+                    ->whereNotNull('observacion_envio')
+                    ->where('observacion_envio', '!=', '')
+                    // Filtros de Estado: Excluir los que ya están en Archivo (4)
+                    ->where('id_estado', '!=', 4)
+                    ->where(function ($sub) {
+                        $sub->where('id_estado_secundario', '!=', 4)
+                            ->orWhereNull('id_estado_secundario')
+                            ->orWhere('id_estado_secundario', '');
+                    })
+                    // Validar solo sobre el seguimiento más reciente del expediente
+                    ->whereRaw('id_seguimiento = (select max(id_seguimiento) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
+            });
+
+        // Aplicar filtros de búsqueda y agencia (comunes a las pestañas)
+        if ($request->id_agencia && $request->id_agencia !== 'todas') {
+            $query->where('id_agencia', $request->id_agencia);
+        }
+        if ($request->codigo_cliente) {
+            $query->where('codigo_cliente', 'like', '%' . $request->codigo_cliente . '%');
+        }
+
+        $expedientes = $query->with([
+                'fechas:id_expediente,f_enviado_archivos',
+                'seguimientos' => function ($q) {
+                    $q->select([
+                        'id_seguimiento',
+                        'id_expediente',
+                        'observacion_envio',
+                        'enviado_a_archivos',
+                        'tipo_contrato',
+                        'numero_contrato'
+                    ])
+                    ->orderBy('id_seguimiento', 'desc')
+                    ->limit(1);
+                }
+            ])
+            ->orderBy('id', 'desc')
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expedientes
+        ]);
+    }
 }

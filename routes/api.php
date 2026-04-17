@@ -168,6 +168,7 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
 
     // Archivo Central
     Route::get('/archivo/buzon-recibidos', [App\Http\Controllers\ArchivoController::class, 'buzonRecibidos']);
+    Route::get('/archivo/pendientes-ingreso', [App\Http\Controllers\ArchivoController::class, 'pendientesIngreso']);
     Route::post('/archivo/{id}/recibir-garantia', [App\Http\Controllers\ArchivoController::class, 'recibirGarantiaReal']);
     Route::post('/archivo/{id}/recibir-contrato', [App\Http\Controllers\ArchivoController::class, 'recibirContrato']);
     Route::post('/archivo/{id}/archivar', [App\Http\Controllers\ArchivoController::class, 'archivar']);
