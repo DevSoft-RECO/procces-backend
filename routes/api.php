@@ -275,6 +275,8 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
     // Desvinculación de Garantías (Administrativo)
     Route::prefix('admin')->group(function () {
         Route::get('/desvinculacion/buscar-expediente', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'searchByExpediente']);
+        Route::get('/desvinculacion/search-documentos', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'searchDocumentos']);
+        Route::post('/desvinculacion/link', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'link']);
         Route::delete('/desvinculacion/unlink', [App\Http\Controllers\DocumentoDesvinculacionController::class, 'unlink']);
 
         // Cancelación de Crédito

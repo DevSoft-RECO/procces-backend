@@ -72,4 +72,70 @@ class DocumentoDesvinculacionController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Buscar documentos (garantías) por número y fecha para vinculación.
+     */
+    public function searchDocumentos(Request $request)
+    {
+        $request->validate([
+            'numero' => 'required|string',
+            'fecha' => 'required|date'
+        ]);
+
+        $numero = trim($request->numero);
+        $fecha = $request->fecha;
+
+        $documentos = Documento::with('tipoDocumento')
+            ->where('numero', $numero)
+            ->whereDate('fecha', $fecha)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $documentos
+        ]);
+    }
+
+    /**
+     * Vincular un documento a un expediente.
+     */
+    public function link(Request $request)
+    {
+        $request->validate([
+            'nuevo_expediente_id' => 'required|exists:nuevos_expedientes,id',
+            'documento_id' => 'required|exists:documentos,id'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $expediente = NuevoExpediente::findOrFail($request->nuevo_expediente_id);
+
+            // Verificar si ya existe el vínculo
+            if ($expediente->documentos()->where('documentos.id', $request->documento_id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este documento ya está vinculado a este expediente.'
+                ], 422);
+            }
+
+            // Vincular
+            $expediente->documentos()->attach($request->documento_id, ['estado' => 'ACTIVO']);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento vinculado correctamente.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al vincular el documento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
