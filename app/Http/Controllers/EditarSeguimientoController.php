@@ -71,6 +71,9 @@ class EditarSeguimientoController extends Controller
                 ? json_decode($request->input('seguimiento'), true) 
                 : $request->input('seguimiento', []);
 
+            // Convertir strings vacíos a null para evitar errores en DB
+            $seguimientoData = array_map(fn($value) => $value === '' ? null : $value, $seguimientoData);
+
             // Manejo de Archivo si se proporciona
             if ($request->hasFile('file_contrato')) {
                 $file = $request->file('file_contrato');
@@ -103,6 +106,9 @@ class EditarSeguimientoController extends Controller
             $fechasData = is_string($request->input('fechas'))
                 ? json_decode($request->input('fechas'), true)
                 : $request->input('fechas', []);
+
+            // Convertir strings vacíos a null para evitar errores en DB (ej. fechas vacías)
+            $fechasData = array_map(fn($value) => $value === '' ? null : $value, $fechasData);
 
             SeguimientoFecha::updateOrCreate(
                 ['id_expediente' => $id],
