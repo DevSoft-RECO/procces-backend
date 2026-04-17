@@ -321,7 +321,7 @@ public function show($id_seguimiento)
                     'documentos.id', 'numero', 'fecha', 'propietario',
                     'autorizador', 'no_finca', 'folio', 'libro',
                     'no_dominio', 'referencia', 'monto_poliza', 'observacion',
-                    'tipo_documento_id', 'registro_propiedad_id'
+                    'tipo_documento_id', 'registro_propiedad_id', 'documentos.estado'
                 ])->with(['tipoDocumento:id,nombre', 'registroPropiedad:id,nombre']);
             },
             'bufete' => function ($query) {
