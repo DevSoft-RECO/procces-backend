@@ -107,9 +107,11 @@ Route::delete('/import-nuevos/lotes/{id}', [App\Http\Controllers\BatchManagement
 Route::get('/expedientes/agencias', [App\Http\Controllers\ExpedienteHistoricoController::class, 'getAgencias']);
 Route::get('/expedientes/estados', [App\Http\Controllers\ExpedienteHistoricoController::class, 'getEstados']);
 Route::get('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'index']);
+Route::post('/expedientes', [App\Http\Controllers\ExpedienteHistoricoController::class, 'store']);
 Route::post('/expedientes/search', [App\Http\Controllers\ExpedienteHistoricoController::class, 'search']);
 Route::post('/expedientes/search-by-codigo', [App\Http\Controllers\ExpedienteHistoricoController::class, 'searchByCodigo']);
 Route::put('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoController::class, 'update']);
+Route::delete('/expedientes/{id}', [App\Http\Controllers\ExpedienteHistoricoController::class, 'destroy']);
 
 //buscarexpedeintes
 

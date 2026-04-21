@@ -126,6 +126,55 @@ class ExpedienteHistoricoController extends Controller
         ]);
     }
     /**
+     * Store a new expediente.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'codigo_cliente' => 'required|integer',
+        ]);
+
+        $data = $request->only([
+            'codigo_cliente',
+            'agencia',
+            'fecha_inicio',
+            'cta_bw',
+            'numero_documento',
+            'cif',
+            'asociado',
+            'monto',
+            'tipo_garantia',
+            'datos_garantia',
+            'contrato',
+            'inscripcion_otros_contratos',
+            'ingreso',
+            'inventario',
+            'salida',
+            'observacion',
+            'estado',
+            'localizacion'
+        ]);
+
+        try {
+            $expediente = Expediente::create($data);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente creado correctamente',
+                'data' => $expediente
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear expediente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Update specific fields of an expediente.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -145,15 +194,24 @@ class ExpedienteHistoricoController extends Controller
 
         // Filter only allowed fields
         $data = $request->only([
+            'codigo_cliente',
+            'agencia',
+            'fecha_inicio',
+            'cta_bw',
+            'numero_documento',
+            'cif',
+            'asociado',
+            'monto',
+            'tipo_garantia',
+            'datos_garantia',
+            'contrato',
             'inscripcion_otros_contratos',
+            'ingreso',
             'inventario',
             'salida',
             'observacion',
             'estado',
-            'localizacion',
-            'contrato',
-            'datos_garantia',
-            'ingreso'
+            'localizacion'
         ]);
 
         try {
@@ -168,6 +226,38 @@ class ExpedienteHistoricoController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar expediente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified expediente from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        $expediente = Expediente::find($id);
+
+        if (!$expediente) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Expediente no encontrado'
+            ], 404);
+        }
+
+        try {
+            $expediente->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expediente eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar expediente: ' . $e->getMessage()
             ], 500);
         }
     }
