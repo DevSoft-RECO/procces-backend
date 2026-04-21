@@ -45,7 +45,8 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
 
             $columns = [
                 'ID Solicitud', 'Código Cliente', 'Número Producto',
-                'Número de Documento', 'Título/Nombre', 'Fecha del Documento',
+                'Número de Documento', 'Tipo de Documento', 'Fecha del Documento',
+                'Propietario', 'Observación del Documento',
                 'Agencia Remitente', 'Usuario Solicitante', 'Tipo de Retiro', 'Justificación',
                 'Fecha de Solicitud', 'Usuario que Autoriza (Despachador)',
                 'Fecha de Envío', 'Usuario de Entrega (Agencia)', 'Agencia Entregada',
@@ -64,13 +65,20 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                 ->leftJoin('users as u_confirma', 'solicitudes_expedientes.id_usuario_confirmacion_retorno', '=', 'u_confirma.id')
                 ->leftJoin('agencias as a_remite', 'solicitudes_expedientes.id_agencia', '=', 'a_remite.id')
                 ->leftJoin('agencias as a_entrega', 'solicitudes_expedientes.id_agencia_entrega', '=', 'a_entrega.id')
+                ->leftJoin('documentos as d', 'solicitudes_expedientes.id_documento', '=', 'd.id')
+                ->leftJoin('tipo_documentos as td', 'd.tipo_documento_id', '=', 'td.id')
                 ->select(
                     'solicitudes_expedientes.id',
                     'solicitudes_expedientes.codigo_cliente',
                     'solicitudes_expedientes.numero_producto',
-                    'solicitudes_expedientes.numero_documento',
-                    'solicitudes_expedientes.titulo_nombre',
-                    'solicitudes_expedientes.fecha_documento',
+                    'd.numero as doc_numero',
+                    'td.nombre as doc_tipo_nombre',
+                    'd.fecha as doc_fecha',
+                    'd.propietario as doc_propietario',
+                    'd.observacion as doc_observacion',
+                    'solicitudes_expedientes.numero_documento as fallback_numero',
+                    'solicitudes_expedientes.titulo_nombre as fallback_tipo',
+                    'solicitudes_expedientes.fecha_documento as fallback_fecha',
                     'a_remite.nombre as agencia_origen',
                     'u_solicita.name as nombre_solicitante',
                     'solicitudes_expedientes.tipo_retiro',
@@ -117,15 +125,18 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                     elseif ($estadoStr == 0) $estadoStr = "Finalizado / Archivado en Central";
                     else $estadoStr = "Desconocido ({$estadoStr})";
 
-                    $fechaDoc = $row->fecha_documento ? date('Y-m-d', strtotime($row->fecha_documento)) : null;
+                    $fechaDocRaw = $row->doc_fecha ?? $row->fallback_fecha;
+                    $fechaDoc = $fechaDocRaw ? date('Y-m-d', strtotime($fechaDocRaw)) : 'N/A';
 
                     fputcsv($file, [
                         $row->id,
                         $row->codigo_cliente ?? 'SIN CÓDIGO',
                         $row->numero_producto ?? 'SIN PRODUCTO',
-                        $row->numero_documento,
-                        $row->titulo_nombre ?? 'SIN TÍTULO',
+                        $row->doc_numero ?? $row->fallback_numero ?? 'S/N',
+                        $row->doc_tipo_nombre ?? $row->fallback_tipo ?? 'SIN TÍTULO',
                         $fechaDoc,
+                        $row->doc_propietario ?? 'N/A',
+                        $row->doc_observacion ?? 'N/A',
                         $row->agencia_origen ?? 'SIN AGENCIA',
                         $row->nombre_solicitante ?? 'USUARIO BORRADO',
                         $tipoReg,
