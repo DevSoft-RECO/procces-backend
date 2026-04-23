@@ -71,6 +71,7 @@ class SeguimientoController extends Controller
     public function buzonSecretaria(Request $request)
     {
         $estado = $request->query('status', 1);
+        $onlyNew = $request->boolean('only_new', false);
 
         $query = NuevoExpediente::query();
 
@@ -97,6 +98,13 @@ class SeguimientoController extends Controller
                   })
                   ->where('archivo_administrativo', '!=', 'Si'); // Excluir archivados administrativamente
             });
+
+            // Filtro: Solo expedientes "NEW" (Aceptado por secretarias)
+            if ($onlyNew) {
+                $query->whereHas('seguimientos.estado', function ($q) {
+                    $q->where('nombre', 'Aceptado por secretarias');
+                });
+            }
         } else {
             // Lógica estándar para estados 1 (Buzón) y 2 (Regresados)
             $query->whereHas('seguimientos', function ($q) use ($estado) {
