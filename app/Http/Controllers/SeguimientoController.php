@@ -102,7 +102,7 @@ class SeguimientoController extends Controller
             // Filtro: Solo expedientes "NEW" (Aceptado por secretarias)
             if ($onlyNew) {
                 $query->whereHas('seguimientos.estado', function ($q) {
-                    $q->where('nombre', 'Aceptado por secretarias');
+                    $q->where('nombre', 'Aceptado por secretaria Agencia');
                 });
             }
         } else {
