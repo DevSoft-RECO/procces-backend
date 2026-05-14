@@ -42,9 +42,14 @@ class SupervisorRegionesController extends Controller
             ->when($fechaInicioBusqueda, function ($q) use ($fechaInicioBusqueda) {
                 return $q->whereDate('fecha_inicio', $fechaInicioBusqueda);
             })
-            // Filtro por Asesor
+            // Filtro por Asesor / General
             ->when($asesorBusqueda, function ($q) use ($asesorBusqueda) {
-                return $q->where('usuario_asesor', 'like', '%' . $asesorBusqueda . '%');
+                return $q->where(function($q2) use ($asesorBusqueda) {
+                    $q2->where('usuario_asesor', 'like', '%' . $asesorBusqueda . '%')
+                       ->orWhere('numero_documento', 'like', '%' . $asesorBusqueda . '%')
+                       ->orWhere('nombre_asociado', 'like', '%' . $asesorBusqueda . '%')
+                       ->orWhere('codigo_cliente', 'like', '%' . $asesorBusqueda . '%');
+                });
             })
             // Lógica por Tabs
             ->when($tab === 'nuevos', function ($q) {
