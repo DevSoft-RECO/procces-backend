@@ -133,12 +133,23 @@ class SecretariaAgenciaController extends Controller
             }
         }
 
+        // 2. Buscador
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('codigo_cliente', 'LIKE', "%{$search}%")
+                  ->orWhere('numero_documento', 'LIKE', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'LIKE', "%{$search}%");
+            });
+        }
+
         $expedientes = $query->whereHas('seguimientos', function ($q) {
             $q->where('archivo_administrativo', 'Si');
         })
         ->with(['fechas', 'seguimientos.estado', 'seguimientos.estadoSecundario'])
         ->orderBy('fecha_inicio', 'desc')
-        ->paginate(15);
+        ->paginate(15)
+        ->withQueryString();
 
         return response()->json([
             'success' => true,
