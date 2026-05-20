@@ -129,32 +129,32 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                     $fechaDoc = $fechaDocRaw ? date('Y-m-d', strtotime($fechaDocRaw)) : 'N/A';
 
                     fputcsv($file, [
-                        $row->id,
-                        $row->codigo_cliente ?? 'SIN CÓDIGO',
-                        $row->numero_producto ?? 'SIN PRODUCTO',
-                        $row->doc_numero ?? $row->fallback_numero ?? 'S/N',
-                        $row->doc_tipo_nombre ?? $row->fallback_tipo ?? 'SIN TÍTULO',
-                        $fechaDoc,
-                        $row->doc_propietario ?? 'N/A',
-                        $row->doc_observacion ?? 'N/A',
-                        $row->agencia_origen ?? 'SIN AGENCIA',
-                        $row->nombre_solicitante ?? 'USUARIO BORRADO',
-                        $tipoReg,
-                        $row->justificacion,
-                        $row->fecha_solicitud,
-                        $row->despachador ?? 'SIN ASIGNAR',
-                        $row->fecha_envio,
-                        $row->agente_entrega ?? 'SIN ASIGNAR',
-                        $row->agencia_destino ?? 'SIN AGENCIA DESTINO',
-                        $row->evidencia_entrega_path,
-                        $estadoStr,
-                        $row->fecha_retorno,
-                        $row->agente_retorno ?? 'SIN ASIGNAR',
-                        $row->observacion_retorno,
-                        $row->fecha_confirmacion_retorno,
-                        $row->agente_confirmacion_retorno ?? 'SIN ASIGNAR',
-                        $row->created_at,
-                        $row->updated_at
+                        $this->sanitizeValue($row->id),
+                        $this->sanitizeValue($row->codigo_cliente ?? 'SIN CÓDIGO'),
+                        $this->sanitizeValue($row->numero_producto ?? 'SIN PRODUCTO'),
+                        $this->sanitizeValue($row->doc_numero ?? $row->fallback_numero ?? 'S/N'),
+                        $this->sanitizeValue($row->doc_tipo_nombre ?? $row->fallback_tipo ?? 'SIN TÍTULO'),
+                        $this->sanitizeValue($fechaDoc),
+                        $this->sanitizeValue($row->doc_propietario ?? 'N/A'),
+                        $this->sanitizeValue($row->doc_observacion ?? 'N/A'),
+                        $this->sanitizeValue($row->agencia_origen ?? 'SIN AGENCIA'),
+                        $this->sanitizeValue($row->nombre_solicitante ?? 'USUARIO BORRADO'),
+                        $this->sanitizeValue($tipoReg),
+                        $this->sanitizeValue($row->justificacion),
+                        $this->sanitizeValue($row->fecha_solicitud),
+                        $this->sanitizeValue($row->despachador ?? 'SIN ASIGNAR'),
+                        $this->sanitizeValue($row->fecha_envio),
+                        $this->sanitizeValue($row->agente_entrega ?? 'SIN ASIGNAR'),
+                        $this->sanitizeValue($row->agencia_destino ?? 'SIN AGENCIA DESTINO'),
+                        $this->sanitizeValue($row->evidencia_entrega_path),
+                        $this->sanitizeValue($estadoStr),
+                        $this->sanitizeValue($row->fecha_retorno),
+                        $this->sanitizeValue($row->agente_retorno ?? 'SIN ASIGNAR'),
+                        $this->sanitizeValue($row->observacion_retorno),
+                        $this->sanitizeValue($row->fecha_confirmacion_retorno),
+                        $this->sanitizeValue($row->agente_confirmacion_retorno ?? 'SIN ASIGNAR'),
+                        $this->sanitizeValue($row->created_at),
+                        $this->sanitizeValue($row->updated_at)
                     ], ',', '"', '"');
                 }
                 $processedRecords += count($retiros);
@@ -181,5 +181,37 @@ class GenerarReporteSolicitudesRetiroJob implements ShouldQueue
                 'error_msg' => 'Error al generar CSV: ' . substr($e->getMessage(), 0, 200)
             ]);
         }
+    }
+
+    /**
+     * Limpia y normaliza un valor para evitar que rompa el formato del CSV.
+     */
+    private function sanitizeValue($value)
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        // Asegurar que sea string
+        $value = (string)$value;
+
+        // 1. Limpiar saltos de línea y tabulaciones que rompen la estructura de filas
+        $value = str_replace(["\r\n", "\r", "\n", "\t"], " ", $value);
+
+        // 2. Reemplazar comillas dobles por comillas simples para no romper fputcsv/Excel
+        $value = str_replace('"', "'", $value);
+
+        // 3. Reemplazar comillas dobles inteligentes (tipográficas) que también pueden romper
+        $value = str_replace(['“', '”', '„', '‟'], "'", $value);
+
+        // 4. Convertir codificación si es necesario para evitar caracteres rotos
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+        }
+
+        // 5. Eliminar caracteres de control no imprimibles
+        $value = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
+
+        return trim($value);
     }
 }
