@@ -5,77 +5,57 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Auth;
-use App\Services\MotherAppService;
 use App\Models\User;
 
 class ValidateSSO
 {
-    protected $motherService;
-
-    public function __construct(MotherAppService $service) {
-        $this->motherService = $service;
-    }
-
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken();
 
         if (!$token) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Token requerido'], 401);
         }
 
         try {
-            // 1. Obtener datos validados y cacheados de la App Madre
-            $userData = $this->motherService->getUserFromToken($token);
+            // Cargar la llave pública almacenada localmente
+            $publicKeyPath = storage_path('oauth-public.key');
 
-            if (!$userData) {
-                 return response()->json(['message' => 'Token Inválido o Expirado'], 401);
+            if (!file_exists($publicKeyPath)) {
+                throw new \Exception("Falta la llave pública oauth-public.key en el servidor hijo");
             }
 
-            // 2. Aprovisionamiento Just-In-Time (Sync local)
-            // Sincronizamos los datos básicos en la tabla users local.
-            // Usamos updateOrCreate para crear o actualizar (si cambió el nombre en la madre)
-            $user = User::updateOrCreate(
-                ['id' => $userData['id']], // Buscamos por ID (mismo que madre)
-                [
-                    'name' => $userData['name'],
-                    'email' => $userData['email'],
-                    'username' => $userData['username'] ?? null,
-                    'telefono' => $userData['telefono'] ?? null,
-                    'id_agencia' => $userData['agencia']['id'] ?? null,
-                ]
-            );
+            $publicKey = file_get_contents($publicKeyPath);
+            JWT::$leeway = 60; // Mitigar desincronizaciones de reloj entre servidores
 
-            // 3. Inyectar Roles y Permisos (Transitorio, no BD)
-            // CRÍTICO: "Aplanar" Arrays de Objetos Spatie -> Strings puros
-            $roles = $userData['roles'] ?? [];
-            if (is_array($roles)) {
-                $roles = array_map(function($r) { 
-                    return is_array($r) ? ($r['name'] ?? $r) : (is_object($r) ? ($r->name ?? $r) : $r); 
-                }, $roles);
+            // 1. Decodificar el Token en memoria de forma local (RS256)
+            $decoded = JWT::decode($token, new Key($publicKey, 'RS256'));
+
+            // 2. Carga rápida pasiva desde la base de datos local
+            // En SADEC, users.id es igual al ID de la Madre ($decoded->sub)
+            $dbUser = User::where('id', $decoded->sub)->first();
+
+            if ($dbUser) {
+                // Loguear usuario real de la base de datos
+                Auth::setUser($dbUser);
+            } else {
+                // 3. Fallback de Red de Seguridad (Usuario no sincronizado en DB local aún)
+                // Creamos un modelo virtual no persistido con sus roles/permisos del JWT
+                $user = new User([
+                    'id' => $decoded->sub,
+                    'roles_list' => $decoded->roles ?? [],
+                    'permissions_list' => $decoded->permissions ?? [],
+                ]);
+                Auth::setUser($user);
             }
 
-            $permissions = $userData['permissions'] ?? $userData['permisos'] ?? [];
-            if (is_array($permissions)) {
-                $permissions = array_map(function($p) { 
-                    return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
-                }, $permissions);
-            }
-
-            $user->roles_list = $roles;
-            $user->permissions_list = $permissions;
-            $user->agencia_data = $userData['agencia'] ?? null;
-
-            // 4. Loguear al usuario en Laravel (Auth Facade)
-            Auth::login($user);
-
-            return $next($request);
-
-        } catch (\Throwable $e) {
-            // Capturamos cualquier error (incluyendo clases no encontradas o DB errors)
-            // Retornamos 401 o 500 según corresponda, pero JSON limpio.
-            return response()->json(['message' => 'SSO Error: ' . $e->getMessage()], 401);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Acceso Denegado (SSO): ' . $e->getMessage()], 401);
         }
+
+        return $next($request);
     }
 }

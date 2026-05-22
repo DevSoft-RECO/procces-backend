@@ -5,50 +5,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http; // Added this use statement
 use App\Http\Controllers\BuscarEditarController;
 use App\Http\Controllers\SolicitudRetiroController; // Added missing import
+use App\Http\Controllers\Auth\SSOController;
 
 // Asegúrate de que el middleware 'sso' esté registrado en bootstrap/app.php
 Route::middleware('sso')->group(function () {
-    Route::get('/me', function (Request $request) {
-        // Opción B: Proxy a la App Madre
-        // Como el token no trae datos, le preguntamos a la madre quién es el dueño del token.
-
-        $token = $request->bearerToken();
-        $madreUrl = config('services.app_madre.url') ?? env('APP_MADRE_URL');
-
-        try {
-            $response = Http::withToken($token)
-                ->get($madreUrl . '/api/user');
-
-            if ($response->successful()) {
-                $userData = $response->json();
-
-                // CRÍTICO: "Aplanar" Arrays de Objetos Spatie -> Strings puros para el Frontend
-                if (isset($userData['roles']) && is_array($userData['roles'])) {
-                    $userData['roles'] = array_map(function($r) { 
-                        return is_array($r) ? ($r['name'] ?? $r) : (is_object($r) ? ($r->name ?? $r) : $r); 
-                    }, $userData['roles']);
-                }
-
-                if (isset($userData['permisos']) && is_array($userData['permisos'])) {
-                    $userData['permisos'] = array_map(function($p) { 
-                        return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
-                    }, $userData['permisos']);
-                }
-
-                if (isset($userData['permissions']) && is_array($userData['permissions'])) {
-                    $userData['permissions'] = array_map(function($p) { 
-                        return is_array($p) ? ($p['name'] ?? $p) : (is_object($p) ? ($p->name ?? $p) : $p); 
-                    }, $userData['permissions']);
-                }
-
-                return response()->json($userData);
-            } else {
-                return response()->json(['message' => 'Error validando con App Madre'], $response->status());
-            }
-        } catch (\Exception $e) {
-             return response()->json(['message' => 'Error de conexión con App Madre: ' . $e->getMessage()], 500);
-        }
-    });
+    Route::get('/me', [SSOController::class, 'me']);
 
     Route::get('/users/search', function (Request $request) {
         $token = $request->bearerToken();

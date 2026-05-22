@@ -29,6 +29,11 @@ class User extends Authenticatable
         'email',
         'telefono',
         'id_agencia',
+        'puesto',
+        'avatar',
+        'roles_list',
+        'permissions_list',
+        'jti',
     ];
 
     /**
@@ -50,12 +55,20 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'roles_list' => 'array',
+            'permissions_list' => 'array',
         ];
     }
 
+    /**
+     * Relación física con la Agencia local.
+     */
+    public function agencia()
+    {
+        return $this->belongsTo(Agencia::class, 'id_agencia');
+    }
+
     // --- Transient Properties for SSO (Not saved in DB) ---
-    public $roles_list = [];
-    public $permissions_list = [];
     public $agencia_data = null;
 
     // --- Authorization Helpers ---
