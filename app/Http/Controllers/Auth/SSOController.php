@@ -64,12 +64,6 @@ class SSOController extends Controller
                 $permisos = array_values(array_map(function ($perm) {
                     return $perm['name'] ?? '';
                 }, $filteredPermissions));
-
-                // Red de seguridad: si el filtrado por categoría dio vacío pero el usuario sí tiene permisos,
-                // hacemos un fallback a aplanar toda la lista plana para no dejar al usuario sin accesos en producción.
-                if (empty($permisos)) {
-                    $permisos = $this->flatten($userData['permisos'] ?? $userData['permissions'] ?? $userData['permissions_list'] ?? []);
-                }
             } else {
                 $permisos = $this->flatten($userData['permisos'] ?? $userData['permissions'] ?? $userData['permissions_list'] ?? []);
             }
