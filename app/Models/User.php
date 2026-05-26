@@ -82,7 +82,7 @@ class User extends Authenticatable
 
     public function getIdagenciaAttribute()
     {
-        return $this->id_agencia;
+        return $this->attributes['id_agencia'] ?? null;
     }
 
     public function getRolesAttribute()
