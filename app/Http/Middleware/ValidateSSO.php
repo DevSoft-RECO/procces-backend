@@ -45,11 +45,11 @@ class ValidateSSO
                 // para actualizar de forma permanente el registro del usuario en la primera llamada de API.
                 $needsSave = false;
 
-                if (empty($dbUser->roles_list) && !empty($decoded->roles)) {
+                if ((!is_array($dbUser->roles_list) || empty($dbUser->roles_list) || $dbUser->roles_list === 'Array' || (is_array($dbUser->roles_list) && count($dbUser->roles_list) === 1 && $dbUser->roles_list[0] === 'Array')) && !empty($decoded->roles)) {
                     $dbUser->roles_list = is_array($decoded->roles) ? $decoded->roles : [$decoded->roles];
                     $needsSave = true;
                 }
-                if (empty($dbUser->permissions_list) && !empty($decoded->permissions)) {
+                if ((!is_array($dbUser->permissions_list) || empty($dbUser->permissions_list) || $dbUser->permissions_list === 'Array' || (is_array($dbUser->permissions_list) && count($dbUser->permissions_list) === 1 && $dbUser->permissions_list[0] === 'Array')) && !empty($decoded->permissions)) {
                     $dbUser->permissions_list = is_array($decoded->permissions) ? $decoded->permissions : [$decoded->permissions];
                     $needsSave = true;
                 }

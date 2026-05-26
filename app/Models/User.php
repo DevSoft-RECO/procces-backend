@@ -47,6 +47,24 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['idagencia', 'roles', 'permissions', 'permisos'];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'roles_list' => 'array',
+        'permissions_list' => 'array',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -58,6 +76,28 @@ class User extends Authenticatable
             'roles_list' => 'array',
             'permissions_list' => 'array',
         ];
+    }
+
+    // --- Accesores de Compatibilidad Histórica ---
+
+    public function getIdagenciaAttribute()
+    {
+        return $this->id_agencia;
+    }
+
+    public function getRolesAttribute()
+    {
+        return $this->roles_list ?? [];
+    }
+
+    public function getPermissionsAttribute()
+    {
+        return $this->permissions_list ?? [];
+    }
+
+    public function getPermisosAttribute()
+    {
+        return $this->permissions_list ?? [];
     }
 
     /**
