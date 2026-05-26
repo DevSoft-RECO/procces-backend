@@ -39,6 +39,25 @@ class ValidateSSO
             $dbUser = User::where('id', $decoded->sub)->first();
 
             if ($dbUser) {
+                // Red de seguridad y auto-reparación: si por alguna razón los roles o permisos están vacíos o nulos en la base de datos local
+                // (por ejemplo, porque el usuario ya existía antes de la migración de SSO y las nuevas columnas se crearon vacías),
+                // los recuperamos del token criptográficamente verificado y los guardamos físicamente en la base de datos
+                // para actualizar de forma permanente el registro del usuario en la primera llamada de API.
+                $needsSave = false;
+
+                if (empty($dbUser->roles_list) && !empty($decoded->roles)) {
+                    $dbUser->roles_list = is_array($decoded->roles) ? $decoded->roles : [$decoded->roles];
+                    $needsSave = true;
+                }
+                if (empty($dbUser->permissions_list) && !empty($decoded->permissions)) {
+                    $dbUser->permissions_list = is_array($decoded->permissions) ? $decoded->permissions : [$decoded->permissions];
+                    $needsSave = true;
+                }
+
+                if ($needsSave) {
+                    $dbUser->save();
+                }
+
                 // Loguear usuario real de la base de datos
                 Auth::setUser($dbUser);
             } else {

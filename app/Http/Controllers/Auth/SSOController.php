@@ -52,10 +52,10 @@ class SSOController extends Controller
 
             $username = $userData['username'] ?? 'unknown';
 
-            // 2. APLANAMIENTO Y FILTRADO POR CATEGORÍA "SADEC"
+            // 2. APLANAMIENTO Y FILTRADO POR CATEGORÍA "App_SADEC"
             $roles = $this->flatten($userData['roles'] ?? $userData['roles_list'] ?? []);
 
-            // Filtrar permisos por la categoría asignada "SADEC" para no almacenar permisos de otras apps
+            // Filtrar permisos por la categoría asignada "App_SADEC" para no almacenar permisos de otras apps
             if (isset($userData['permissions_detailed']) && is_array($userData['permissions_detailed'])) {
                 $filteredPermissions = array_filter($userData['permissions_detailed'], function ($perm) {
                     return isset($perm['category']) && $perm['category'] === 'App_SADEC';
@@ -64,6 +64,12 @@ class SSOController extends Controller
                 $permisos = array_values(array_map(function ($perm) {
                     return $perm['name'] ?? '';
                 }, $filteredPermissions));
+
+                // Red de seguridad: si el filtrado por categoría dio vacío pero el usuario sí tiene permisos,
+                // hacemos un fallback a aplanar toda la lista plana para no dejar al usuario sin accesos en producción.
+                if (empty($permisos)) {
+                    $permisos = $this->flatten($userData['permisos'] ?? $userData['permissions'] ?? $userData['permissions_list'] ?? []);
+                }
             } else {
                 $permisos = $this->flatten($userData['permisos'] ?? $userData['permissions'] ?? $userData['permissions_list'] ?? []);
             }
