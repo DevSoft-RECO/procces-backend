@@ -166,9 +166,14 @@ class ConfirmacionDocController extends Controller
             $query->where('user_id', $user->id);
         }
 
-        $resultados = $query->get();
+        $search = $request->input('search');
+        if ($search) {
+            $query->where('id', $search);
+        }
 
-        return response()->json(['data' => $resultados]);
+        $resultados = $query->paginate(10);
+
+        return response()->json($resultados);
     }
 
     /**
