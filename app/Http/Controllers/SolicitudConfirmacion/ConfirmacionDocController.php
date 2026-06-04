@@ -105,14 +105,19 @@ class ConfirmacionDocController extends Controller
      */
     public function index(Request $request)
     {
-        // Get all where confirmacion is NULL
-        $pendientes = ConfirmacionDocumento::with([
+        $query = ConfirmacionDocumento::with([
                 'documento.tipoDocumento',
                 'documento.registroPropiedad',
                 'user',  // Nombre y agencia del solicitante
             ])
-            ->whereNull('confirmacion')
-            ->orderBy('created_at', 'desc')
+            ->whereNull('confirmacion');
+
+        $search = $request->input('search');
+        if ($search) {
+            $query->where('id', $search);
+        }
+
+        $pendientes = $query->orderBy('created_at', 'desc')
             ->paginate(10);
 
         return response()->json($pendientes);
