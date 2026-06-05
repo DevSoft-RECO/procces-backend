@@ -392,6 +392,11 @@ class SolicitudRetiroController extends Controller
             });
         }
 
+        // --- FILTRO POR ID DE REGISTRO ---
+        if ($searchId = $request->input('search_id')) {
+            $query->where('id', $searchId);
+        }
+
         $solicitudes = $query->orderBy('updated_at', 'desc')->paginate(10);
 
         return response()->json($solicitudes); // El contenedor paginate() envuelve los datos en 'data' y los meta
