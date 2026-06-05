@@ -186,8 +186,7 @@ class ConfirmacionDocController extends Controller
      */
     public function indexHistory(Request $request)
     {
-        // For now, same data. In future, could filter byValidatorUser
-        $historico = ConfirmacionDocumento::with([
+        $query = ConfirmacionDocumento::with([
             'documento.tipoDocumento',
             'documento.registroPropiedad',
             'documento.nuevosExpedientes' => function ($query) {
@@ -195,8 +194,14 @@ class ConfirmacionDocController extends Controller
             },
             'user',  // Nombre y agencia del solicitante
         ])
-            ->whereNotNull('confirmacion')
-            ->orderBy('fecha_confirmacion', 'desc')
+            ->whereNotNull('confirmacion');
+
+        $search = $request->input('search');
+        if ($search) {
+            $query->where('id', $search);
+        }
+
+        $historico = $query->orderBy('fecha_confirmacion', 'desc')
             ->paginate(10);
 
         return response()->json($historico);
