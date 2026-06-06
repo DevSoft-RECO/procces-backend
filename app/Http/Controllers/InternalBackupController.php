@@ -125,6 +125,11 @@ class InternalBackupController extends Controller
 
         Log::info("Backup Hija: Sirviendo descarga de {$filename} y ejecutando auto-destrucción.");
 
+        // Limpiar el búfer de salida para evitar que espacios en blanco u otros datos corrompan el archivo binario
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         // 3. Servir y borrar inmediatamente después del envío, desactivando buffering en Nginx
         return response()->download($filePath, null, [
             'X-Accel-Buffering' => 'no'
