@@ -126,10 +126,8 @@ class InternalBackupController extends Controller
         Log::info("Backup Hija: Sirviendo descarga de {$filename} y ejecutando auto-destrucción.");
 
         // 3. Servir y borrar inmediatamente después del envío, desactivando buffering en Nginx
-        return response()->download($filePath)
-            ->deleteFileAfterSend(true)
-            ->withHeaders([
-                'X-Accel-Buffering' => 'no'
-            ]);
+        return response()->download($filePath, null, [
+            'X-Accel-Buffering' => 'no'
+        ])->deleteFileAfterSend(true);
     }
 }
