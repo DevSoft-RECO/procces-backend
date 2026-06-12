@@ -246,6 +246,9 @@ Route::post('/nuevos-expedientes/{id}/garantias/{garantiaId}/cambiar-tipo', [App
         // Cancelación de Crédito
         Route::get('/cancelar-credito/search', [\App\Http\Controllers\CancelarCreditoController::class, 'search']);
         Route::post('/cancelar-credito/{id}/toggle', [\App\Http\Controllers\CancelarCreditoController::class, 'toggleStatus']);
+
+        // Verificación de Garantías
+        Route::get('/verificaciones/garantias/search', [\App\Http\Controllers\VerificacionController::class, 'verify']);
     });
 });
 
