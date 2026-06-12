@@ -84,4 +84,34 @@ class DocumentoEdicionController extends Controller
             'message' => 'Documento eliminado correctamente'
         ]);
     }
+
+    /**
+     * Store a newly created document.
+     */
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'numero' => 'required|string',
+            'fecha' => 'required|date',
+            'propietario' => 'required|string',
+            'autorizador' => 'nullable|string',
+            'no_finca' => 'nullable|string',
+            'folio' => 'nullable|string',
+            'libro' => 'nullable|string',
+            'no_dominio' => 'nullable|string',
+            'referencia' => 'nullable|string',
+            'monto_poliza' => 'nullable|numeric',
+            'observacion' => 'nullable|string',
+            'tipo_documento_id' => 'required|exists:tipo_documentos,id',
+            'registro_propiedad_id' => 'nullable|exists:registro_propiedads,id',
+            'estado' => 'required|string',
+        ]);
+
+        $documento = Documento::create($validatedData);
+
+        return response()->json([
+            'message' => 'Documento creado correctamente',
+            'documento' => $documento
+        ], 201);
+    }
 }
