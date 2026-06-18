@@ -102,7 +102,22 @@ class ImportNuevosExpedientesJob implements ShouldQueue
                 '2618' => 18
             ];
 
-            while (($row = fgetcsv($file, 0, ";")) !== FALSE) {
+            // Detect delimiter
+            $delimiter = ';';
+            $testHandle = fopen($this->filePath, 'r');
+            if ($testHandle) {
+                $firstLine = fgets($testHandle);
+                fclose($testHandle);
+                if ($firstLine !== false) {
+                    $semicolons = substr_count($firstLine, ';');
+                    $commas = substr_count($firstLine, ',');
+                    if ($commas > $semicolons) {
+                        $delimiter = ',';
+                    }
+                }
+            }
+
+            while (($row = fgetcsv($file, 0, $delimiter)) !== FALSE) {
                 $currentRow++;
 
                 // Skip Header or Empty

@@ -81,8 +81,23 @@ class ImportExpedientesJob implements ShouldQueue
             fclose($handle);
             $totalLines = max($totalLines - 1, 1);
 
+            // Detect delimiter
+            $delimiter = ';';
+            $testHandle = fopen($this->filePath, 'r');
+            if ($testHandle) {
+                $firstLine = fgets($testHandle);
+                fclose($testHandle);
+                if ($firstLine !== false) {
+                    $semicolons = substr_count($firstLine, ';');
+                    $commas = substr_count($firstLine, ',');
+                    if ($commas > $semicolons) {
+                        $delimiter = ',';
+                    }
+                }
+            }
+
             // PROCESS CSV
-            while (($row = fgetcsv($file, 0, ";")) !== FALSE) { // Changed delimiter to ';'
+            while (($row = fgetcsv($file, 0, $delimiter)) !== FALSE) {
                 $currentRow++;
 
                 // Remove BOM from first column key if present
