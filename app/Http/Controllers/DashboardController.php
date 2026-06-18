@@ -54,21 +54,15 @@ class DashboardController extends Controller
 
         // 2. Average Days (Still requires joins, but one query)
         $avgDaysQuery = DB::table('nuevos_expedientes')
-            ->join('seguimiento_fechas', 'nuevos_expedientes.id', '=', 'seguimiento_fechas.id_expediente')
+            ->join('seguimiento_expedientes', 'nuevos_expedientes.id', '=', 'seguimiento_expedientes.id_expediente')
             ->whereBetween('nuevos_expedientes.fecha_inicio', [$startOfMonth, $endOfMonth])
-            ->whereExists(function($q) {
-                $q->select(DB::raw(1))
-                  ->from('seguimiento_expedientes')
-                  ->whereColumn('seguimiento_expedientes.id_expediente', 'nuevos_expedientes.id')
-                  ->where('seguimiento_expedientes.id_estado', 11);
-            })
-            ->whereNotNull('seguimiento_fechas.f_almacenado_admin');
+            ->where('seguimiento_expedientes.id_estado', 11);
 
         if ($agencyIds) {
             $avgDaysQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
         }
 
-        $avgDaysOpen = $avgDaysQuery->avg(DB::raw('DATEDIFF(seguimiento_fechas.f_almacenado_admin, nuevos_expedientes.fecha_inicio)'));
+        $avgDaysOpen = $avgDaysQuery->avg(DB::raw('DATEDIFF(seguimiento_expedientes.created_at, nuevos_expedientes.fecha_inicio)'));
 
         return response()->json([
             'total_mes'        => (int)$metrics->total_mes,
@@ -321,13 +315,14 @@ class DashboardController extends Controller
         $createdData = $createdQuery->groupBy('month_label')->pluck('count', 'month_label');
 
         // 2. Get Finalized counts grouped by Month
-        $finalizedQuery = DB::table('seguimiento_fechas')
-            ->join('nuevos_expedientes', 'seguimiento_fechas.id_expediente', '=', 'nuevos_expedientes.id')
+        $finalizedQuery = DB::table('seguimiento_expedientes')
+            ->join('nuevos_expedientes', 'seguimiento_expedientes.id_expediente', '=', 'nuevos_expedientes.id')
             ->select(
-                DB::raw("DATE_FORMAT(seguimiento_fechas.f_almacenado_admin, '%Y-%m') as month_label"),
+                DB::raw("DATE_FORMAT(seguimiento_expedientes.created_at, '%Y-%m') as month_label"),
                 DB::raw('COUNT(*) as count')
             )
-            ->whereBetween('seguimiento_fechas.f_almacenado_admin', [$startDate, $endDate]);
+            ->where('seguimiento_expedientes.id_estado', 11)
+            ->whereBetween('seguimiento_expedientes.created_at', [$startDate, $endDate]);
 
         if ($agencyIds) {
             $finalizedQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
