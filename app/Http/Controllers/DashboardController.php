@@ -300,46 +300,37 @@ class DashboardController extends Controller
         $startDate = Carbon::now()->subMonths(5)->startOfMonth();
         $endDate = Carbon::now()->endOfMonth();
 
-        // 1. Get Created counts grouped by Month
-        $createdQuery = DB::table('nuevos_expedientes')
+        // 1. Get Created and Finalized counts grouped by Month (based on fecha_inicio)
+        $trendsQuery = DB::table('nuevos_expedientes')
             ->select(
                 DB::raw("DATE_FORMAT(fecha_inicio, '%Y-%m') as month_label"),
-                DB::raw('COUNT(*) as count')
+                DB::raw('COUNT(*) as created_count'),
+                DB::raw('SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM seguimiento_expedientes 
+                    WHERE id_expediente = nuevos_expedientes.id 
+                    AND id_estado = 11
+                ) THEN 1 ELSE 0 END) as finalized_count')
             )
             ->whereBetween('fecha_inicio', [$startDate, $endDate]);
 
         if ($agencyIds) {
-            $createdQuery->whereIn('id_agencia', $agencyIds);
+            $trendsQuery->whereIn('id_agencia', $agencyIds);
         }
 
-        $createdData = $createdQuery->groupBy('month_label')->pluck('count', 'month_label');
+        $trendsData = $trendsQuery->groupBy('month_label')->get()->keyBy('month_label');
 
-        // 2. Get Finalized counts grouped by Month
-        $finalizedQuery = DB::table('seguimiento_expedientes')
-            ->join('nuevos_expedientes', 'seguimiento_expedientes.id_expediente', '=', 'nuevos_expedientes.id')
-            ->select(
-                DB::raw("DATE_FORMAT(seguimiento_expedientes.created_at, '%Y-%m') as month_label"),
-                DB::raw('COUNT(*) as count')
-            )
-            ->where('seguimiento_expedientes.id_estado', 11)
-            ->whereBetween('seguimiento_expedientes.created_at', [$startDate, $endDate]);
-
-        if ($agencyIds) {
-            $finalizedQuery->whereIn('nuevos_expedientes.id_agencia', $agencyIds);
-        }
-
-        $finalizedData = $finalizedQuery->groupBy('month_label')->pluck('count', 'month_label');
-
-        // 3. Assemble the last 6 months list
+        // 2. Assemble the last 6 months list
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
             $label = $date->format('Y-m');
             
+            $monthData = $trendsData->get($label);
+            
             $months[] = [
                 'month' => $label,
-                'created' => $createdData->get($label, 0),
-                'finalized' => $finalizedData->get($label, 0)
+                'created' => $monthData ? (int)$monthData->created_count : 0,
+                'finalized' => $monthData ? (int)$monthData->finalized_count : 0
             ];
         }
 
