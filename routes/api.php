@@ -49,6 +49,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/agencies-list', [App\Http\Controllers\DashboardController::class, 'agenciesList']);
     Route::get('/trends', [App\Http\Controllers\DashboardController::class, 'trends']);
     Route::get('/processing-times', [App\Http\Controllers\DashboardController::class, 'processingTimes']);
+    Route::get('/without-tracking', [App\Http\Controllers\DashboardController::class, 'withoutTracking']);
 });
 
 // Catalog Routes

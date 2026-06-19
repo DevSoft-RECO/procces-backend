@@ -370,4 +370,32 @@ class DashboardController extends Controller
             'lawyer_return' => round($avgs->avg_lawyer_return ?? 0, 1),
         ]);
     }
+
+    /**
+     * Get list of expedientes from selected month that do not have tracking.
+     */
+    public function withoutTracking(Request $request)
+    {
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+        $startOfMonth = Carbon::parse($month)->startOfMonth();
+        $endOfMonth = Carbon::parse($month)->endOfMonth();
+        $agencyIds = $this->getAuthorizedAgencyId($request);
+
+        $query = DB::table('nuevos_expedientes')
+            ->whereBetween('fecha_inicio', [$startOfMonth, $endOfMonth])
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('seguimiento_expedientes')
+                  ->whereColumn('seguimiento_expedientes.id_expediente', 'nuevos_expedientes.id');
+            })
+            ->select('numero_documento');
+
+        if ($agencyIds) {
+            $query->whereIn('id_agencia', $agencyIds);
+        }
+
+        $expedientes = $query->get();
+
+        return response()->json($expedientes);
+    }
 }
