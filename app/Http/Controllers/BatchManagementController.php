@@ -32,6 +32,7 @@ class BatchManagementController extends Controller
     {
         $records = NuevoExpediente::where('id_lote', $id)
             ->select('id', 'codigo_cliente', 'nombre_asociado', 'numero_documento', 'created_at')
+            ->withExists('seguimientos')
             ->limit(500) // Safety limit for preview
             ->get();
 
