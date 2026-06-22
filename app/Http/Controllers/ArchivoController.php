@@ -263,6 +263,16 @@ public function archivoSistema(Request $request)
         ])
         ->where('id_estado', 11)
         ->where('id_estado_secundario', 11)
+        ->when($request->codigo_cliente, function ($query) use ($request) {
+            $query->whereHas('nuevoExpediente', function ($q) use ($request) {
+                $q->where('codigo_cliente', 'like', '%' . $request->codigo_cliente . '%');
+            });
+        })
+        ->when($request->numero_documento, function ($query) use ($request) {
+            $query->whereHas('nuevoExpediente', function ($q) use ($request) {
+                $q->where('numero_documento', 'like', '%' . $request->numero_documento . '%');
+            });
+        })
         ->with([
             'nuevoExpediente' => function ($query) {
                 $query->select([
