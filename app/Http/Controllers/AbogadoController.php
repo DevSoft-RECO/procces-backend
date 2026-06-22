@@ -27,7 +27,14 @@ class AbogadoController extends Controller
             if (!$bufete) {
                 return response()->json([
                     'success' => true,
-                    'data' => []
+                    'data' => [
+                        'data' => [],
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'total' => 0,
+                        'from' => 0,
+                        'to' => 0
+                    ]
                 ]);
             }
             
@@ -36,10 +43,28 @@ class AbogadoController extends Controller
             });
         }
 
+        // Apply filters
+        if ($request->filled('id_agencia')) {
+            $query->where('id_agencia', $request->input('id_agencia'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%")
+                  ->orWhereHas('seguimientos', function ($q2) use ($search) {
+                      $q2->where('numero_contrato', 'like', "%{$search}%");
+                  });
+            });
+        }
+
         $expedientes = $query->with(['seguimientos' => function ($query) {
             $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
         }, 'fechas', 'agencia'])
-        ->get();
+        ->latest('id')
+        ->paginate(10);
 
         return response()->json([
             'success' => true,
@@ -186,7 +211,18 @@ class AbogadoController extends Controller
             });
         }
 
-        $expedientes = $query->latest('nuevos_expedientes.id')->paginate(15);
+        // SEARCH FILTER
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('nuevos_expedientes.id', 'like', "%{$search}%")
+                  ->orWhere('nuevos_expedientes.codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nuevos_expedientes.nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('nuevos_expedientes.numero_documento', 'like', "%{$search}%");
+            });
+        }
+
+        $expedientes = $query->latest('nuevos_expedientes.id')->paginate(10);
 
         return response()->json($expedientes);
     }
