@@ -234,17 +234,65 @@ class SecretariaCreditoController extends Controller
      */
     public function buzonAbogados(Request $request)
     {
-        $expedientes = \App\Models\NuevoExpediente::whereHas('seguimientos', function ($query) {
+        $query = \App\Models\NuevoExpediente::select([
+            'id',
+            'codigo_cliente',
+            'nombre_asociado',
+            'id_agencia'
+        ])
+        ->whereHas('seguimientos', function ($query) {
             $query->whereIn('id_estado', [8, 9, 10])
                   ->whereRaw('created_at = (select max(created_at) from seguimiento_expedientes where id_expediente = nuevos_expedientes.id)');
         })
         ->whereHas('fechas', function ($query) {
             $query->whereNull('f_enviado_secretaria_credito');
-        })
-        ->with(['seguimientos' => function ($query) {
-            $query->orderBy('created_at', 'desc')->with(['estado', 'bufete.user', 'bufete.agencia']);
-        }, 'fechas'])
-        ->get();
+        });
+
+        // Apply filters if any
+        if ($request->filled('id_agencia')) {
+            $query->where('id_agencia', $request->input('id_agencia'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('codigo_cliente', 'like', "%{$search}%")
+                  ->orWhere('nombre_asociado', 'like', "%{$search}%")
+                  ->orWhere('numero_documento', 'like', "%{$search}%");
+            });
+        }
+
+        $expedientes = $query->with([
+            'seguimientos' => function ($query) {
+                $query->select(['id_expediente', 'bufete_id', 'id_estado', 'numero_contrato'])
+                      ->orderBy('created_at', 'desc')
+                      ->with([
+                          'bufete:id,user_id,agencia_id',
+                          'bufete.user:id,name',
+                          'bufete.agencia:id,nombre',
+                          'estado:id,nombre'
+                      ]);
+            },
+            'fechas:id_expediente,f_aceptado_abogado,f_enviado_secretaria_credito,f_enviado_abogado',
+            'agencia:id,nombre'
+        ])
+        ->latest('id')
+        ->paginate(10);
+
+        // Hide user appends
+        $expedientes->getCollection()->transform(function ($expediente) {
+            if ($expediente->seguimientos) {
+                foreach ($expediente->seguimientos as $seg) {
+                    if ($seg->bufete && $seg->bufete->user) {
+                        $seg->bufete->user->makeHidden([
+                            'roles', 'permissions', 'permisos', 
+                            'roles_list', 'permissions_list', 'idagencia', 'id_agencia'
+                        ]);
+                    }
+                }
+            }
+            return $expediente;
+        });
 
         return response()->json([
             'success' => true,
