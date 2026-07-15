@@ -68,10 +68,11 @@ class AbogadoController extends Controller
         ])
         ->with([
             'seguimientos' => function ($query) {
-                $query->select(['id_expediente', 'numero_contrato'])
-                      ->orderBy('created_at', 'desc');
+                $query->select(['id_expediente', 'bufete_id', 'id_estado', 'numero_contrato'])
+                      ->orderBy('created_at', 'desc')
+                      ->with(['bufete.user', 'bufete.agencia', 'estado']);
             },
-            'fechas:id_expediente,f_aceptado_abogado,f_enviado_secretaria_credito',
+            'fechas:id_expediente,f_aceptado_abogado,f_enviado_secretaria_credito,f_enviado_abogado',
             'agencia:id,nombre'
         ])
         ->latest('id')
