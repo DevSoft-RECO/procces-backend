@@ -70,13 +70,32 @@ class AbogadoController extends Controller
             'seguimientos' => function ($query) {
                 $query->select(['id_expediente', 'bufete_id', 'id_estado', 'numero_contrato'])
                       ->orderBy('created_at', 'desc')
-                      ->with(['bufete.user', 'bufete.agencia', 'estado']);
+                      ->with([
+                          'bufete:id,user_id,agencia_id',
+                          'bufete.user:id,name',
+                          'bufete.agencia:id,nombre',
+                          'estado:id,nombre'
+                      ]);
             },
             'fechas:id_expediente,f_aceptado_abogado,f_enviado_secretaria_credito,f_enviado_abogado',
             'agencia:id,nombre'
         ])
         ->latest('id')
         ->paginate(10);
+
+        $expedientes->getCollection()->transform(function ($expediente) {
+            if ($expediente->seguimientos) {
+                foreach ($expediente->seguimientos as $seg) {
+                    if ($seg->bufete && $seg->bufete->user) {
+                        $seg->bufete->user->makeHidden([
+                            'roles', 'permissions', 'permisos', 
+                            'roles_list', 'permissions_list', 'idagencia', 'id_agencia'
+                        ]);
+                    }
+                }
+            }
+            return $expediente;
+        });
 
         return response()->json([
             'success' => true,
