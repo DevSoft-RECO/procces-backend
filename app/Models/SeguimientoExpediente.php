@@ -69,7 +69,7 @@ class SeguimientoExpediente extends Model
     }
 
     /**
-     * Marca masivamente los expedientes asociados a un documento como modificados.
+     * Marca masivamente los expedientes asociados a un documento como modificados incrementando la columna.
      */
     public static function marcarModificacionPorDocumento($documentoId)
     {
@@ -79,9 +79,18 @@ class SeguimientoExpediente extends Model
             ->pluck('nuevo_expediente_id');
 
         if ($expedienteIds->isNotEmpty()) {
-            // Actualizar masivamente la columna modificacion en la tabla seguimiento_expedientes
+            // Incrementar masivamente la columna modificacion en la tabla seguimiento_expedientes
             static::whereIn('id_expediente', $expedienteIds)
-                ->update(['modificacion' => 1]);
+                ->increment('modificacion');
         }
+    }
+
+    /**
+     * Incrementa la columna modificacion para un expediente específico.
+     */
+    public static function marcarModificacionPorExpediente($expedienteId)
+    {
+        static::where('id_expediente', $expedienteId)
+            ->increment('modificacion');
     }
 }

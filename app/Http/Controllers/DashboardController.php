@@ -125,7 +125,7 @@ class DashboardController extends Controller
                 ) THEN 1 ELSE 0 END) as active_cases'),
                 DB::raw('SUM(
                     (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
-                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion > 0) THEN 1 ELSE 0 END)
                 ) as rejected_cases'),
                 DB::raw('SUM(CASE WHEN NOT EXISTS (
                     SELECT 1 FROM seguimiento_expedientes 
@@ -196,7 +196,7 @@ class DashboardController extends Controller
                 'id_agencia',
                 DB::raw('SUM(
                     (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
-                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion > 0) THEN 1 ELSE 0 END)
                 ) as count')
             )
             ->groupBy('usuario_asesor', 'id_agencia')
@@ -241,7 +241,7 @@ class DashboardController extends Controller
                 ) THEN 1 ELSE 0 END) as active_cases'),
                 DB::raw('SUM(
                     (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_fechas sf WHERE sf.id_expediente = nuevos_expedientes.id AND sf.f_retorno_asesores IS NOT NULL) THEN 1 ELSE 0 END) +
-                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion = 1) THEN 1 ELSE 0 END)
+                    (CASE WHEN EXISTS (SELECT 1 FROM seguimiento_expedientes se WHERE se.id_expediente = nuevos_expedientes.id AND se.modificacion > 0) THEN 1 ELSE 0 END)
                 ) as rejected_cases'),
                 DB::raw('SUM(CASE WHEN nuevos_expedientes.id IS NOT NULL AND NOT EXISTS (
                     SELECT 1 FROM seguimiento_expedientes 

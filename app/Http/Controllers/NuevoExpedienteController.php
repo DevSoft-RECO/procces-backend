@@ -424,6 +424,9 @@ public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId
         // 3. Actualizamos la tabla pivot
         $expediente->garantias()->updateExistingPivot($garantiaId, $pivotData);
 
+        // Incrementar el contador de correcciones en el expediente
+        \App\Models\SeguimientoExpediente::marcarModificacionPorExpediente($expedienteId);
+
         DB::commit();
 
         return response()->json([
@@ -481,6 +484,9 @@ public function updateGarantiaPivot(Request $request, $expedienteId, $garantiaId
 
             // 3. Attach new with old pivot data
             $expediente->garantias()->attach($nuevaGarantiaId, $pivotData);
+
+            // Incrementar el contador de correcciones en el expediente
+            \App\Models\SeguimientoExpediente::marcarModificacionPorExpediente($expedienteId);
 
             DB::commit();
 
