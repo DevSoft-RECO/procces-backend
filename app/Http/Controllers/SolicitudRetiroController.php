@@ -117,10 +117,10 @@ class SolicitudRetiroController extends Controller
                 return $exp->pivot->estado === 'activo';
             })->count();
 
-            // Retiro definitivo permitido si NO está amarrado a OTROS expedientes activos (O si es Super Admin)
-            $doc->permite_definitivo = $isSuperAdmin || !$doc->tiene_otros_activos;
-            // Retiro temporal permitido si al menos tiene UN expediente activo (O si es Super Admin)
-            $doc->permite_temporal = $isSuperAdmin || $totalActivos > 0;
+            // Retiro definitivo permitido si NO está amarrado a NINGÚN expediente activo (ni actual ni otros)
+            $doc->permite_definitivo = $totalActivos === 0;
+            // Retiro temporal permitido si al menos tiene UN expediente activo
+            $doc->permite_temporal = $totalActivos > 0;
 
             $doc->otros_activos_lista = $otrosActivosDesc->values()->map(function($exp) {
                 return [
@@ -170,8 +170,7 @@ class SolicitudRetiroController extends Controller
         $user = Auth::user();
 
         // Validar nuevamente que no esté bloqueado (Security Layer)
-        // EXCEPCIÓN: Super Admin puede saltarse estas validaciones de negocio vinculadas
-        if (!$request->es_manual && !$user->hasRole('Super Admin')) {
+        if (!$request->es_manual) {
             // Recuparar expediente contexto
             $expedienteId = $request->id_expediente;
             $numeroDoc = $request->numero_documento;
@@ -218,9 +217,9 @@ class SolicitudRetiroController extends Controller
                 })->count();
 
                 if ($request->tipo_retiro === 'Definitivo') {
-                    // Retiro Definitivo: Se permite solo si NO hay OTROS expedientes activos
-                    if ($tieneOtrosActivos) {
-                         return response()->json(['message' => 'No se puede solicitar un Retiro Definitivo porque el documento aún está vinculado a otros expedientes en estado activo.'], 422);
+                    // Retiro Definitivo: Se permite solo si NO hay NINGÚN expediente activo vinculado
+                    if ($totalActivos > 0) {
+                         return response()->json(['message' => 'No se puede solicitar un Retiro Definitivo porque el documento aún está vinculado a expedientes en estado activo. Solicite la cancelación del producto en SADEC para realizar el retiro definitivo.'], 422);
                     }
                 } else if ($request->tipo_retiro === 'Temporal') {
                     // Retiro Temporal: Requiere que al menos UNO esté 'activo'
