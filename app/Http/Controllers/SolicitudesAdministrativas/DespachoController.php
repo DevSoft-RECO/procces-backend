@@ -16,6 +16,17 @@ class DespachoController extends Controller
     {
         $solicitud = SolicitudAdministrativa::findOrFail($id);
 
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
+        $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+
+        if (!$isSuperAdmin && $userAgenciaId && $solicitud->id_agencia && $solicitud->id_agencia != $userAgenciaId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tiene autorización para operar solicitudes de otra agencia.'
+            ], 403);
+        }
+
         if ($solicitud->estado_solicitud !== 'pendiente') {
             return response()->json([
                 'success' => false,
@@ -44,6 +55,17 @@ class DespachoController extends Controller
         ]);
 
         $solicitud = SolicitudAdministrativa::findOrFail($id);
+
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
+        $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+
+        if (!$isSuperAdmin && $userAgenciaId && $solicitud->id_agencia && $solicitud->id_agencia != $userAgenciaId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tiene autorización para operar solicitudes de otra agencia.'
+            ], 403);
+        }
 
         if ($solicitud->estado_solicitud !== 'recibido_por_admin') {
             return response()->json([
@@ -78,10 +100,15 @@ class DespachoController extends Controller
      */
     public function index(Request $request)
     {
+        $user = auth()->user();
+        $roles = $user ? ($user->roles_list ?? []) : [];
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)$roles));
+
         $estado = $request->query('estado', 'pendientes'); // pendientes, despachados, historico
 
         $query = SolicitudAdministrativa::with(['expediente', 'usuarioSolicita', 'agencia', 'usuarioDespacho']);
 
+        // 1. Filtro por Estado (Pestañas)
         if ($estado === 'pendientes') {
             // Mostrar las que están en 'pendiente' o 'recibido_por_admin'
             $query->whereIn('estado_solicitud', ['pendiente', 'recibido_por_admin']);
@@ -90,15 +117,66 @@ class DespachoController extends Controller
             $query->whereNotIn('estado_solicitud', ['pendiente', 'recibido_por_admin', 'archivado']);
         } elseif ($estado === 'historico') {
             // Mostrar las archivadas/finalizadas
-            $query->where('estado_solicitud', 'archivado')
+            $query->where(function($q) {
+                $q->where('estado_solicitud', 'archivado')
                   ->orWhere('estado', 'archivado');
+            });
+        }
+
+        // 2. Filtro de Seguridad por Agencia:
+        // Si NO es Super Admin, SOLO ve solicitudes que pertenezcan a su agencia
+        if (!$isSuperAdmin) {
+            $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+            if ($userAgenciaId) {
+                $query->where(function($q) use ($userAgenciaId) {
+                    $q->where('id_agencia', $userAgenciaId)
+                      ->orWhereHas('expediente', function($eq) use ($userAgenciaId) {
+                          $eq->where('id_agencia', $userAgenciaId);
+                      });
+                });
+            } else {
+                // Usuario sin agencia asignada y no Super Admin no ve registros ajenos
+                $query->whereRaw('1 = 0');
+            }
+        } else {
+            // Para Super Admin: es global, pero si envió un id_agencia específico se aplica
+            if ($request->filled('id_agencia')) {
+                $filtroAgencia = $request->input('id_agencia');
+                $query->where(function($q) use ($filtroAgencia) {
+                    $q->where('id_agencia', $filtroAgencia)
+                      ->orWhereHas('expediente', function($eq) use ($filtroAgencia) {
+                          $eq->where('id_agencia', $filtroAgencia);
+                      });
+                });
+            }
+        }
+
+        // 3. Buscador por ID (solicitud o expediente) y numero_documento
+        if ($request->filled('search')) {
+            $search = trim($request->input('search'));
+            $cleanNumeric = ltrim($search, '#');
+
+            $query->where(function($q) use ($search, $cleanNumeric) {
+                // Buscar por ID de solicitud
+                if (is_numeric($cleanNumeric)) {
+                    $q->where('id', $cleanNumeric);
+                }
+                // O buscar en el expediente por ID o numero_documento
+                $q->orWhereHas('expediente', function($eq) use ($search, $cleanNumeric) {
+                    $eq->where('numero_documento', 'like', "%{$search}%");
+                    if (is_numeric($cleanNumeric)) {
+                        $eq->orWhere('id', $cleanNumeric);
+                    }
+                });
+            });
         }
 
         $solicitudes = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return response()->json([
             'success' => true,
-            'data' => $solicitudes
+            'data' => $solicitudes,
+            'is_super_admin' => $isSuperAdmin
         ]);
     }
 
@@ -109,6 +187,17 @@ class DespachoController extends Controller
     public function confirmarReingreso($id)
     {
         $solicitud = SolicitudAdministrativa::findOrFail($id);
+
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
+        $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+
+        if (!$isSuperAdmin && $userAgenciaId && $solicitud->id_agencia && $solicitud->id_agencia != $userAgenciaId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tiene autorización para operar solicitudes de otra agencia.'
+            ], 403);
+        }
 
         if ($solicitud->fecha_devolucion_iniciada === null || $solicitud->confirmacion_reingreso === 'si') {
             return response()->json([
