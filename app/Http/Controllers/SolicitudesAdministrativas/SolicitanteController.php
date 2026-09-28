@@ -120,41 +120,109 @@ class SolicitanteController extends Controller
     }
 
     /**
-     * Obtiene las solicitudes activas (en proceso) de la agencia del usuario.
-     * Cualquier estado distinto a 'archivado'
+     * Obtiene las solicitudes activas (en proceso).
+     * Si es usuario normal: solo las solicitudes que el usuario ha generado (id_usuario_solicita).
+     * Si es Super Admin: ve todas las solicitudes globales de todos los usuarios (opcionalmente filtrables por id_agencia o search).
      */
     public function index(Request $request)
     {
-        $agenciaId = $request->query('id_agencia') ?? auth()->user()->id_agencia ?? auth()->user()->agencia_id;
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
 
-        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita'])
-            ->where('id_agencia', $agenciaId)
-            ->where('estado', '!=', 'archivado') // O el estado final que definas
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $query = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita', 'agencia'])
+            ->where('estado', '!=', 'archivado')
+            ->where('estado_solicitud', '!=', 'archivado');
+
+        if (!$isSuperAdmin) {
+            // Usuario normal: SOLO devuelve las solicitudes que el usuario ha generado
+            $query->where('id_usuario_solicita', $user->id);
+        } else {
+            // Super Admin: ve todas las globales, con soporte para filtrar por agencia si lo especifica
+            if ($request->filled('id_agencia')) {
+                $query->where('id_agencia', $request->query('id_agencia'));
+            }
+        }
+
+        // Búsqueda opcional (por ID de solicitud o datos del expediente)
+        if ($request->filled('search')) {
+            $search = trim($request->query('search'));
+            $cleanNumeric = preg_replace('/[^0-9]/', '', $search);
+
+            $query->where(function($q) use ($search, $cleanNumeric) {
+                if ($cleanNumeric !== '') {
+                    $q->where('id', $cleanNumeric);
+                }
+                $q->orWhereHas('expediente', function($expQuery) use ($search, $cleanNumeric) {
+                    $expQuery->where('numero_documento', 'like', "%{$search}%")
+                             ->orWhere('nombre_asociado', 'like', "%{$search}%");
+                    if ($cleanNumeric !== '') {
+                        $expQuery->orWhere('id', $cleanNumeric);
+                    }
+                });
+            });
+        }
+
+        $solicitudes = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return response()->json([
             'success' => true,
+            'is_super_admin' => $isSuperAdmin,
             'data' => $solicitudes
         ]);
     }
 
     /**
-     * Obtiene el historial de solicitudes finalizadas (archivadas) de la agencia del usuario.
+     * Obtiene el historial de solicitudes finalizadas (archivadas).
+     * Si es usuario normal: solo el historial de lo que el usuario ha generado.
+     * Si es Super Admin: ve todo el historial global.
      */
     public function historico(Request $request)
     {
-        $agenciaId = $request->query('id_agencia') ?? auth()->user()->id_agencia ?? auth()->user()->agencia_id;
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
 
-        $solicitudes = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita'])
-            ->where('id_agencia', $agenciaId)
-            ->where('estado', 'archivado')
-            ->orderBy('fecha_finalizacion', 'desc')
+        $query = \App\Models\SolicitudAdministrativa::with(['expediente', 'usuarioSolicita', 'agencia'])
+            ->where(function($q) {
+                $q->where('estado', 'archivado')
+                  ->orWhere('estado_solicitud', 'archivado');
+            });
+
+        if (!$isSuperAdmin) {
+            // Usuario normal: SOLO devuelve su historial generado
+            $query->where('id_usuario_solicita', $user->id);
+        } else {
+            // Super Admin: ve todo el histórico global
+            if ($request->filled('id_agencia')) {
+                $query->where('id_agencia', $request->query('id_agencia'));
+            }
+        }
+
+        // Búsqueda opcional
+        if ($request->filled('search')) {
+            $search = trim($request->query('search'));
+            $cleanNumeric = preg_replace('/[^0-9]/', '', $search);
+
+            $query->where(function($q) use ($search, $cleanNumeric) {
+                if ($cleanNumeric !== '') {
+                    $q->where('id', $cleanNumeric);
+                }
+                $q->orWhereHas('expediente', function($expQuery) use ($search, $cleanNumeric) {
+                    $expQuery->where('numero_documento', 'like', "%{$search}%")
+                             ->orWhere('nombre_asociado', 'like', "%{$search}%");
+                    if ($cleanNumeric !== '') {
+                        $expQuery->orWhere('id', $cleanNumeric);
+                    }
+                });
+            });
+        }
+
+        $solicitudes = $query->orderBy('fecha_finalizacion', 'desc')
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         return response()->json([
             'success' => true,
+            'is_super_admin' => $isSuperAdmin,
             'data' => $solicitudes
         ]);
     }
@@ -166,8 +234,11 @@ class SolicitanteController extends Controller
     {
         $solicitud = \App\Models\SolicitudAdministrativa::findOrFail($id);
 
-        $userAgenciaId = auth()->user()->id_agencia ?? auth()->user()->agencia_id;
-        if ($userAgenciaId && $solicitud->id_agencia != $userAgenciaId) {
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
+        $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+
+        if (!$isSuperAdmin && $userAgenciaId && $solicitud->id_agencia && $solicitud->id_agencia != $userAgenciaId) {
             return response()->json(['success' => false, 'message' => 'No Autorizado: El expediente pertenece a otra agencia.'], 403);
         }
 
@@ -197,8 +268,11 @@ class SolicitanteController extends Controller
     {
         $solicitud = \App\Models\SolicitudAdministrativa::findOrFail($id);
 
-        $userAgenciaId = auth()->user()->id_agencia ?? auth()->user()->agencia_id;
-        if ($userAgenciaId && $solicitud->id_agencia != $userAgenciaId) {
+        $user = auth()->user();
+        $isSuperAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) || in_array('Super Admin', (array)($user->roles_list ?? [])));
+        $userAgenciaId = $user ? (method_exists($user, 'getAgenciaId') ? $user->getAgenciaId() : $user->id_agencia) : null;
+
+        if (!$isSuperAdmin && $userAgenciaId && $solicitud->id_agencia && $solicitud->id_agencia != $userAgenciaId) {
             return response()->json(['success' => false, 'message' => 'No Autorizado: El expediente pertenece a otra agencia.'], 403);
         }
 
