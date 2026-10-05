@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Documento;
 use App\Models\SeguimientoExpediente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DocumentoEdicionController extends Controller
 {
@@ -69,20 +71,77 @@ class DocumentoEdicionController extends Controller
      */
     public function destroy($id)
     {
-        $documento = Documento::findOrFail($id);
+        $documento = Documento::find($id);
 
-        // Marcar expedientes como modificados antes de desvincular y borrar
-        SeguimientoExpediente::marcarModificacionPorDocumento($id);
+        if (!$documento) {
+            return response()->json([
+                'message' => 'El documento no fue encontrado o ya ha sido eliminado.'
+            ], 404);
+        }
 
-        // Desvincular de los expedientes (tabla pivot)
-        $documento->nuevosExpedientes()->detach();
+        // Verificar vinculaciones con otras tablas para proteger los datos históricos
+        $vinculaciones = [];
 
-        // Eliminar el documento
-        $documento->delete();
+        // 1. Verificar si está asociado a expedientes
+        $expedientesCount = DB::table('documento_nuevo_expediente')
+            ->where('documento_id', $id)
+            ->count();
+        if ($expedientesCount > 0) {
+            $vinculaciones[] = "Expedientes vinculados: {$expedientesCount} registro(s) en 'documento_nuevo_expediente'.";
+        }
 
-        return response()->json([
-            'message' => 'Documento eliminado correctamente'
-        ]);
+        // 2. Verificar si está asociado a solicitudes de retiro
+        $solicitudesCount = DB::table('solicitudes_expedientes')
+            ->where('id_documento', $id)
+            ->count();
+        if ($solicitudesCount > 0) {
+            $vinculaciones[] = "Solicitudes de retiro: {$solicitudesCount} registro(s) en 'solicitudes_expedientes'.";
+        }
+
+        // 3. Verificar si está asociado a confirmaciones de documentos
+        $confirmacionesCount = DB::table('confirmaciones_documentos')
+            ->where('documento_id', $id)
+            ->count();
+        if ($confirmacionesCount > 0) {
+            $vinculaciones[] = "Confirmaciones de documentos: {$confirmacionesCount} registro(s) en 'confirmaciones_documentos'.";
+        }
+
+        // Si tiene registros vinculados, no se puede eliminar para proteger datos históricos
+        if (!empty($vinculaciones)) {
+            return response()->json([
+                'message' => 'No se puede eliminar la garantía porque contiene registros históricos vinculados.',
+                'detalles' => $vinculaciones,
+                'sugerencia' => 'Para eliminarla, primero tendrían que removerse o desvincularse los registros en las tablas donde está enlazada, protegiendo así los datos históricos.'
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Marcar expedientes como modificados antes de desvincular y borrar (si aplicara)
+            SeguimientoExpediente::marcarModificacionPorDocumento($id);
+
+            // Desvincular de los expedientes (tabla pivot)
+            $documento->nuevosExpedientes()->detach();
+
+            // Eliminar el documento
+            $documento->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Documento eliminado correctamente'
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Error al eliminar documento {$id}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Error al eliminar el documento: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

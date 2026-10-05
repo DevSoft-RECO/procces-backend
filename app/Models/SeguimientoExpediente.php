@@ -73,15 +73,20 @@ class SeguimientoExpediente extends Model
      */
     public static function marcarModificacionPorDocumento($documentoId)
     {
-        // Obtener los IDs de expedientes vinculados a este documento desde la tabla pivot
-        $expedienteIds = \DB::table('documento_nuevo_expediente')
-            ->where('documento_id', $documentoId)
-            ->pluck('nuevo_expediente_id');
+        try {
+            // Obtener los IDs de expedientes vinculados a este documento desde la tabla pivot
+            $expedienteIds = \DB::table('documento_nuevo_expediente')
+                ->where('documento_id', $documentoId)
+                ->pluck('nuevo_expediente_id');
 
-        if ($expedienteIds->isNotEmpty()) {
-            // Incrementar masivamente la columna modificacion en la tabla seguimiento_expedientes
-            static::whereIn('id_expediente', $expedienteIds)
-                ->increment('modificacion');
+            if ($expedienteIds->isNotEmpty()) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('seguimiento_expedientes', 'modificacion')) {
+                    static::whereIn('id_expediente', $expedienteIds)
+                        ->increment('modificacion');
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo marcar modificación para documento {$documentoId}: " . $e->getMessage());
         }
     }
 
@@ -90,7 +95,13 @@ class SeguimientoExpediente extends Model
      */
     public static function marcarModificacionPorExpediente($expedienteId)
     {
-        static::where('id_expediente', $expedienteId)
-            ->increment('modificacion');
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('seguimiento_expedientes', 'modificacion')) {
+                static::where('id_expediente', $expedienteId)
+                    ->increment('modificacion');
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo marcar modificación para expediente {$expedienteId}: " . $e->getMessage());
+        }
     }
 }
