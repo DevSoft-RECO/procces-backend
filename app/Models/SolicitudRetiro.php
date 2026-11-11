@@ -32,11 +32,19 @@ class SolicitudRetiro extends Model
         'id_agencia_entrega',
         'evidencia_entrega_path',
         'estado_actual',
+        'fecha_retorno',
+        'id_usuario_retorno',
+        'observacion_retorno',
+        'fecha_confirmacion_retorno',
+        'id_usuario_confirmacion_retorno',
     ];
 
     protected $casts = [
+        'estado_actual' => 'integer',
         'fecha_solicitud' => 'datetime',
         'fecha_envio' => 'datetime',
+        'fecha_retorno' => 'datetime',
+        'fecha_confirmacion_retorno' => 'datetime',
     ];
 
     public function expediente()
@@ -86,5 +94,15 @@ class SolicitudRetiro extends Model
     {
         // Relación por ID autoincremental de la tabla expedientes
         return $this->belongsTo(Expediente::class, 'id_expediente_historico', 'id');
+    }
+
+    public function usuarioRetorno()
+    {
+        return $this->belongsTo(User::class, 'id_usuario_retorno');
+    }
+
+    public function usuarioConfirmacionRetorno()
+    {
+        return $this->belongsTo(User::class, 'id_usuario_confirmacion_retorno');
     }
 }

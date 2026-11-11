@@ -21,7 +21,18 @@ class SolicitudRetiroEdicionController extends Controller
             'fecha_documento' => 'nullable|date',
         ]);
 
-        $query = SolicitudRetiro::with(['expediente', 'agencia', 'solicitante', 'despachador', 'entregador', 'agenciaEntrega', 'expedienteHistorico'])
+        $query = SolicitudRetiro::with([
+            'expediente',
+            'agencia',
+            'solicitante',
+            'despachador',
+            'entregador',
+            'agenciaEntrega',
+            'expedienteHistorico',
+            'documento',
+            'usuarioRetorno',
+            'usuarioConfirmacionRetorno',
+        ])
             ->where('numero_documento', $request->numero_documento);
 
         if ($request->fecha_documento) {
@@ -41,24 +52,55 @@ class SolicitudRetiroEdicionController extends Controller
         $solicitud = SolicitudRetiro::findOrFail($id);
 
         $validatedData = $request->validate([
-            'id_expediente' => 'nullable|exists:nuevos_expedientes,id',
-            'id_expediente_historico' => 'nullable|exists:expedientes,id',
-            'numero_documento' => 'sometimes|required|string',
+            'id_expediente' => 'nullable|integer|min:1|exists:nuevos_expedientes,id',
+            'id_expediente_historico' => 'nullable|integer|min:1|exists:expedientes,id',
+            'numero_documento' => 'sometimes|required|string|max:50',
             'fecha_documento' => 'nullable|date',
-            'id_documento' => 'nullable|exists:documentos,id',
-            'titulo_nombre' => 'sometimes|required|string',
-            'id_agencia' => 'sometimes|required|exists:agencias,id',
-            'id_usuario_solicitante' => 'sometimes|required|exists:users,id',
+            'id_documento' => 'nullable|integer|min:1|exists:documentos,id',
+            'titulo_nombre' => 'sometimes|required|string|max:255',
+            'codigo_cliente' => 'nullable|string|max:50',
+            'numero_producto' => 'nullable|string|max:50',
+            'id_agencia' => 'sometimes|required|integer|exists:agencias,id',
+            'id_usuario_solicitante' => 'sometimes|required|integer|exists:users,id',
             'tipo_retiro' => 'sometimes|required|in:Temporal,Definitivo',
             'justificacion' => 'sometimes|required|string',
             'fecha_solicitud' => 'sometimes|required|date',
-            'id_usuario_despacho' => 'nullable|exists:users,id',
+            'id_usuario_despacho' => 'nullable|integer|exists:users,id',
             'fecha_envio' => 'nullable|date',
-            'id_usuario_entrega' => 'nullable|exists:users,id',
-            'id_agencia_entrega' => 'nullable|exists:agencias,id',
-            'estado_actual' => 'sometimes|required|integer',
+            'observacion_despacho' => 'nullable|string|max:300',
+            'id_usuario_entrega' => 'nullable|integer|exists:users,id',
+            'id_agencia_entrega' => 'nullable|integer|exists:agencias,id',
+            'estado_actual' => 'sometimes|required|integer|in:0,1,2,3,4,5,6',
+            'fecha_retorno' => 'nullable|date',
+            'id_usuario_retorno' => 'nullable|integer|exists:users,id',
+            'observacion_retorno' => 'nullable|string',
+            'fecha_confirmacion_retorno' => 'nullable|date',
+            'id_usuario_confirmacion_retorno' => 'nullable|integer|exists:users,id',
             'evidencia' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
+
+        // Normalizar cadenas vacías a null y fechas/horas a la zona horaria de la aplicación
+        $dateFields = [
+            'fecha_documento',
+            'fecha_solicitud',
+            'fecha_envio',
+            'fecha_retorno',
+            'fecha_confirmacion_retorno',
+        ];
+
+        foreach ($validatedData as $key => $value) {
+            if ($value === '') {
+                $validatedData[$key] = null;
+            }
+        }
+
+        foreach ($dateFields as $field) {
+            if (array_key_exists($field, $validatedData)) {
+                $validatedData[$field] = $validatedData[$field]
+                    ? Carbon::parse($validatedData[$field])->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s')
+                    : null;
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -71,7 +113,8 @@ class SolicitudRetiroEdicionController extends Controller
                 }
 
                 $file = $request->file('evidencia');
-                $numDoc = $validatedData['numero_documento'] ?? $solicitud->numero_documento ?? 'S-N';
+                $numDocRaw = $validatedData['numero_documento'] ?? $solicitud->numero_documento ?? 'S-N';
+                $numDoc = preg_replace('/[^A-Za-z0-9\-_]/', '-', $numDocRaw) ?: 'S-N';
                 $extension = $file->getClientOriginalExtension();
                 $filename = "EVI-{$numDoc}-" . time() . ".{$extension}"; // Added timestamp to avoid cache/collision
                 $folder = 'sadec/retiro_garantia';
@@ -90,7 +133,18 @@ class SolicitudRetiroEdicionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Solicitud de retiro actualizada correctamente.',
-                'solicitud' => $solicitud
+                'solicitud' => $solicitud->fresh([
+                    'expediente',
+                    'agencia',
+                    'solicitante',
+                    'despachador',
+                    'entregador',
+                    'agenciaEntrega',
+                    'expedienteHistorico',
+                    'documento',
+                    'usuarioRetorno',
+                    'usuarioConfirmacionRetorno',
+                ]),
             ]);
 
         } catch (\Exception $e) {
